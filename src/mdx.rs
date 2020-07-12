@@ -473,7 +473,7 @@ pub fn decode_key_block_info(key_block_info_compressed: &Vec<u8>, header: &Heade
         i += byte_width;
         i += (text_head_size + text_term) as usize;
         let text_tail_size = unpack_u16(&key_block_info_bytes[i..(i + byte_width)], Endian::BE);
-        i += byte_width; //todo:
+        i += byte_width;
         i += (text_tail_size + text_term) as usize;
 
         let key_block_compressed_size = unpack_u64(&key_block_info_bytes[i..(i + num_width)], Endian::BE);
