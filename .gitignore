@@ -14,3 +14,4 @@ Cargo.lock
 
 *.mdx
 *.mdx.db
+mdx/

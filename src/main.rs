@@ -1,20 +1,21 @@
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 
 use rusqlite::{Connection, named_params, params};
-use warp::{Filter};
-use warp::http::{Response};
+use warp::{Filter, Rejection, Buf};
+use warp::http::Response;
 
 use crate::mdx::{Mdx, RecordIndex};
-
+use warp::hyper::body::Bytes;
 
 mod checksum;
 mod mdx;
 mod number;
 mod unpack;
 
-const MDX_PATH: &str = "resources/LSC4.mdx";
+const MDX_PATH: &str = "mdx/LSC4.mdx";
 
 fn query(word: String) -> String {
     let w = word;
@@ -89,6 +90,12 @@ fn indexing(db_file: &str, conn: &mut Connection, mdx: &Mdx) {
     println!("indexing record info done");
 }
 
+#[derive(Deserialize, Serialize)]
+struct QueryForm {
+    word: String,
+    dict: String,
+}
+
 #[tokio::main]
 async fn main() {
     let mdx = Mdx::new(MDX_PATH);
@@ -97,33 +104,41 @@ async fn main() {
     let mut db_file = mdx_file.clone();
     db_file.push_str(".db");
 
-    if true {
-        if std::path::PathBuf::from(&db_file).exists() {
-            std::fs::remove_file(&db_file).expect("remove old db error");
-            println!("Removing old db file:{}", &db_file);
-        }
-        let mut conn = Connection::open(&db_file).unwrap();
-        indexing(&db_file, &mut conn, &mdx);
-    }
+
+    // if std::path::PathBuf::from(&db_file).exists() {
+    //     std::fs::remove_file(&db_file).expect("remove old db error");
+    //     println!("Removing old db file:{}", &db_file);
+    // }
+    // let mut conn = Connection::open(&db_file).unwrap();
+    // indexing(&db_file, &mut conn, &mdx);
 
 
-    // get /q?key=value
-    let query = warp::get()
-        .and(warp::path("q"))
-        .and(warp::query::<HashMap<String, String>>())
-        .map(|p: HashMap<String, String>| match p.get("key") {
-            Some(key) => Response::builder()
+    pretty_env_logger::init();
+
+    // POST /s  {"word":"for","dict":"LSC4"}
+    let s = warp::post()
+        .and(warp::path("s"))
+        // Only accept bodies smaller than 16kb...
+        .and(warp::body::content_length_limit(1024 * 16))
+        .and(warp::body::json())
+        .map(|form: QueryForm| {
+            Response::builder()
                 .header("content-type", "text/html; charset=UTF-8")
-                .body(format!("{}", query(key.clone()))),
-            None => Response::builder().body(String::from("No \"key\" param in query.")),
+                .body(format!("{}", query(form.word.clone())))
         });
 
+    let index = warp::get()
+        .and(warp::path::end())
+        .and(warp::fs::file("./index.html"));
 
-    let css = warp::get()
+    let resources = warp::get()
         .and(warp::fs::dir("static"));
 
-    let routes = query.or(css);
-    println!("server listening on localhost:3030");
+
+    let api = index.or(resources).or(s);
+    let routes = api.with(warp::log("mdict"));
+
+    println!("server listening on http://localhost:3030");
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
 
