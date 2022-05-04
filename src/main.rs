@@ -1,21 +1,20 @@
-use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 
 use rusqlite::{Connection, named_params, params};
-use warp::{Filter, Rejection, Buf};
+use serde_derive::{Deserialize, Serialize};
+use warp::Filter;
 use warp::http::Response;
 
-use crate::mdx::{Mdx, RecordIndex};
-use warp::hyper::body::Bytes;
+use crate::mdict::mdx::Mdx;
+use crate::mdict::record::RecordIndex;
 
 mod checksum;
-mod mdx;
+mod mdict;
 mod number;
 mod unpack;
-
-const MDX_PATH: &str = "mdx/LSC4.mdx";
+//is
+const MDX_PATH: &str = "resources/mdx/en/牛津高阶8.mdx";
 
 fn query(word: String) -> String {
     let w = word;
@@ -98,20 +97,18 @@ struct QueryForm {
 
 #[tokio::main]
 async fn main() {
-    let mdx = Mdx::new(MDX_PATH);
-
+    let mdx = mdict::mdx::Mdx::new(MDX_PATH);
     let mdx_file = &mdx.header.file;
     let mut db_file = mdx_file.clone();
     db_file.push_str(".db");
 
-
-    // if std::path::PathBuf::from(&db_file).exists() {
-    //     std::fs::remove_file(&db_file).expect("remove old db error");
-    //     println!("Removing old db file:{}", &db_file);
-    // }
-    // let mut conn = Connection::open(&db_file).unwrap();
-    // indexing(&db_file, &mut conn, &mdx);
-
+    if std::path::PathBuf::from(&db_file).exists() {
+        std::fs::remove_file(&db_file).expect("remove old db error");
+        println!("Removing old db file:{}", &db_file);
+    }
+    let mut conn = Connection::open(&db_file).unwrap();
+    println!("start indexing mdx to db");
+    indexing(&db_file, &mut conn, &mdx);
 
     pretty_env_logger::init();
 

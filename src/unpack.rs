@@ -7,7 +7,7 @@ pub enum Endian {
     BE,
 }
 
-// big endian bytes unpack,等价下面的代码
+// big endian bytes unpack,等价下面的 python 代码
 // from struct import unpack
 // unpack('>I', bytes_arr)
 // unpack('<I', bytes_arr)
@@ -43,6 +43,7 @@ pub fn utf16_le_string(slice: &[u8]) -> Option<String> {
         .map(|i| u16::from_le_bytes([slice[2 * i], slice[2 * i + 1]]));
     std::char::decode_utf16(iter).collect::<Result<String, _>>().ok()
 }
+
 // 等价上面方法, 使用了unsafe
 // pub fn u8_to_utf16_string(bytes: &[u8]) -> Option<String> {
 //     let (front, slice, back) = unsafe {
