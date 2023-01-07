@@ -35,23 +35,10 @@ pub fn unpack_u64(bytes: &[u8], byteorder: Endian) -> u64 {
     }
 }
 
-
-// python bytes.decode("utf-16").encode("utf-8")
-pub fn utf16_le_string(slice: &[u8]) -> Option<String> {
+/// bytes to utf16 string, equals python bytes.decode("utf-16").encode("utf-8")
+pub fn utf16_string_le(slice: &[u8]) -> Option<String> {
     let idx = slice.len() / 2;
     let iter = (0..idx)
         .map(|i| u16::from_le_bytes([slice[2 * i], slice[2 * i + 1]]));
     std::char::decode_utf16(iter).collect::<Result<String, _>>().ok()
 }
-
-// 等价上面方法, 使用了unsafe
-// pub fn u8_to_utf16_string(bytes: &[u8]) -> Option<String> {
-//     let (front, slice, back) = unsafe {
-//         bytes.align_to::<u16>()
-//     };
-//     if front.is_empty() && back.is_empty() {
-//         String::from_utf16(slice).ok()
-//     } else {
-//         None
-//     }
-// }

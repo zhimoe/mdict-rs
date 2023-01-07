@@ -1,6 +1,6 @@
 
-pub(crate) mod mdx;
-mod mdd;
-mod header;
-mod key;
-pub(crate) mod record;
+pub mod mdx;
+pub mod mdd;
+pub mod header;
+pub mod key;
+pub mod record;

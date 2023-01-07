@@ -5,21 +5,23 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 pub struct NumberBytes {
     tail: Vec<u8>,
+    number_width: usize,
 }
 
 impl NumberBytes {
-    pub fn new(bytes: &Vec<u8>) -> Self {
+    pub fn new(bytes: &Vec<u8>, number_width: usize) -> Self {
         NumberBytes {
             tail: bytes.clone(),
+            number_width,
         }
     }
 
-    pub fn read_number(&mut self, width: usize) -> Option<u64> {
+    pub fn read_number(&mut self) -> Option<u64> {
         let cur_tail = self.tail.clone();
-        if cur_tail.len() < width {
+        if cur_tail.len() < self.number_width {
             return None;
         }
-        let (mut num, tail_bytes) = cur_tail.split_at(width);
+        let (mut num, tail_bytes) = cur_tail.split_at(self.number_width);
         self.tail = Vec::from(tail_bytes);
         Some(num.read_u64::<BigEndian>().unwrap())
     }
