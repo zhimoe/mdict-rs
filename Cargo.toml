@@ -3,7 +3,9 @@ name = "mdict-rs"
 version = "0.1.0"
 authors = ["zhimoe"]
 edition = "2021"
-
+[[bin]]
+name = "demo"
+path = "src/bin/demo.rs"
 
 [dependencies]
 pretty_env_logger = "0.4"
@@ -24,4 +26,5 @@ regex = "*"
 byteorder = "*"
 rusqlite = { version = "0.28", features = ["bundled"] }
 flate2 = { version = "1.0", features = ["zlib"], default-features = false }
+rand = "0.8.5"
 

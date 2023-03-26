@@ -5,10 +5,10 @@ use flate2::write::ZlibDecoder;
 use ripemd128::{Digest, Ripemd128};
 
 use crate::checksum::adler32_checksum;
-use crate::number::{NumberBytes, read_number};
-use crate::unpack::{Endian, unpack_u16, unpack_u32, unpack_u64};
+use crate::number::{read_number, NumberBytes};
+use crate::unpack::{unpack_u16, unpack_u32, unpack_u64, Endian};
 
-use super::header::{Header};
+use super::header::Header;
 use super::key::KeyIndex;
 use super::record::RecordIndex;
 
@@ -29,16 +29,25 @@ impl Mdx {
     pub fn new(file: &str) -> Mdx {
         let mut reader = BufReader::new(File::open(&file).unwrap());
         let mut bytes4 = [0; 4];
-        reader.read_exact(&mut bytes4).expect("read exact 4 bytes error");
+        reader
+            .read_exact(&mut bytes4)
+            .expect("read exact 4 bytes error");
         let header_len = unpack_u32(&bytes4, Endian::BE);
         println!("the header len is {}", &header_len);
         let mut header_bytes = vec![0; header_len as usize];
-        reader.read_exact(&mut header_bytes).expect("read header bytes of dict info error");
+        reader
+            .read_exact(&mut header_bytes)
+            .expect("read header bytes of dict info error");
 
         // reade 4 bytes: adler32 checksum of header, in little endian
         let mut adler32_bytes = [0; 4];
-        reader.read_exact(&mut adler32_bytes).expect("read adler32_bytes error");
-        println!("the adler32 int is {}", unpack_u32(&adler32_bytes, Endian::LE));
+        reader
+            .read_exact(&mut adler32_bytes)
+            .expect("read adler32_bytes error");
+        println!(
+            "the adler32 int is {}",
+            unpack_u32(&adler32_bytes, Endian::LE)
+        );
 
         if adler32_checksum(&header_bytes, &adler32_bytes, Endian::LE) {
             println!("header bytes adler32_checksum success")
@@ -47,16 +56,24 @@ impl Mdx {
         }
 
         let mut header = Header::build_from_bytes(header_bytes);
-        let pos = reader.seek(SeekFrom::Current(0)).expect("get current file position error");
+        let pos = reader
+            .seek(SeekFrom::Current(0))
+            .expect("get current file position error");
         println!("### key_block_offset is {}", &pos);
         header.key_block_offset = pos;
 
         // parser key block
         let number_width: u8 = if header.engine_version >= 2.0 { 8 } else { 4 };
-        let key_block_meta_bytes_size = if header.engine_version >= 2.0 { 8 * 5 } else { 4 * 4 }; // 看结构图https://bitbucket.org/xwang/mdict-analysis/src/master/MDX.svg
+        let key_block_meta_bytes_size = if header.engine_version >= 2.0 {
+            8 * 5
+        } else {
+            4 * 4
+        }; // 看结构图https://bitbucket.org/xwang/mdict-analysis/src/master/MDX.svg
 
         let mut key_block_meta_bytes = vec![0; key_block_meta_bytes_size];
-        reader.read_exact(&mut key_block_meta_bytes).expect("read key block info meta bytes error");
+        reader
+            .read_exact(&mut key_block_meta_bytes)
+            .expect("read key block info meta bytes error");
 
         let mut meta_number_bytes = NumberBytes::new(&key_block_meta_bytes, number_width as usize);
 
@@ -65,7 +82,10 @@ impl Mdx {
 
         if header.engine_version >= 2.0 {
             let key_block_info_decompress_bytes_size = meta_number_bytes.read_number().unwrap();
-            println!("key_block_info_decompress_bytes_size={}", key_block_info_decompress_bytes_size);
+            println!(
+                "key_block_info_decompress_bytes_size={}",
+                key_block_info_decompress_bytes_size
+            );
         }
         let key_block_info_bytes_size = meta_number_bytes.read_number().unwrap();
         let key_blocks_bytes_num = meta_number_bytes.read_number().unwrap();
@@ -73,7 +93,9 @@ impl Mdx {
         // adler32 checksum of previous 5 bytes, in big endian, only version >= 2.0
         if header.engine_version >= 2.0 {
             let mut adler32_bytes = [0; 4];
-            reader.read_exact(&mut adler32_bytes).expect("read exact error");
+            reader
+                .read_exact(&mut adler32_bytes)
+                .expect("read exact error");
 
             if adler32_checksum(&key_block_meta_bytes, &adler32_bytes, Endian::BE) {
                 println!("key block info adler32 checksum success")
@@ -83,15 +105,25 @@ impl Mdx {
         }
 
         let mut key_block_info_bytes = vec![0; key_block_info_bytes_size as usize];
-        reader.read_exact(&mut key_block_info_bytes).expect("read exact error");
+        reader
+            .read_exact(&mut key_block_info_bytes)
+            .expect("read exact error");
 
         let mut key_block_list_bytes = vec![0; key_blocks_bytes_num as usize];
-        reader.read_exact(&mut key_block_list_bytes).expect("read exact error");
+        reader
+            .read_exact(&mut key_block_list_bytes)
+            .expect("read exact error");
 
-        header.record_block_offset = reader.seek(SeekFrom::Current(0)).expect("get current file position error");
+        header.record_block_offset = reader
+            .seek(SeekFrom::Current(0))
+            .expect("get current file position error");
 
-        let key_block_codec_size_list = decode_key_block_info(&key_block_info_bytes, &header);//(key_block_compressed_size, key_block_decompressed_size)
-        println!("key_block_codec_size_list.len={} ,key_block_codec_size_list = {:?}", &key_block_codec_size_list.len(), &key_block_codec_size_list, );
+        let key_block_codec_size_list = decode_key_block_info(&key_block_info_bytes, &header); //(key_block_compressed_size, key_block_decompressed_size)
+        println!(
+            "key_block_codec_size_list.len={} ,key_block_codec_size_list = {:?}",
+            &key_block_codec_size_list.len(),
+            &key_block_codec_size_list,
+        );
         let key_id_text_list = decode_key_block(&key_block_list_bytes, &key_block_codec_size_list);
 
         // parse record block
@@ -118,11 +150,16 @@ impl Mdx {
         let mut offset: usize = 0;
 
         for (c_size, d_size) in record_block_codec_size_list {
-            let cur_pos = reader.seek(SeekFrom::Current(0)).expect("get current file position error");
+            let cur_pos = reader
+                .seek(SeekFrom::Current(0))
+                .expect("get current file position error");
             let mut record_block_bytes_compressed: Vec<u8> = vec![0; c_size];
-            reader.read_exact(&mut record_block_bytes_compressed).expect("read exact error");
+            reader
+                .read_exact(&mut record_block_bytes_compressed)
+                .expect("read exact error");
 
-            let (_record_block_decompressed, block_type) = decompress_record_block_bytes(&mut record_block_bytes_compressed);
+            let (_record_block_decompressed, block_type) =
+                decompress_record_block_bytes(&mut record_block_bytes_compressed);
 
             // split record block into record according to the offset info from key block
             while i < key_id_text_list.len() {
@@ -172,9 +209,13 @@ impl Mdx {
         }
     }
 
-
     // util function, extract word definitions from bytes
-    pub fn extract_definition(record_block_compressed: &mut Vec<u8>, record_start: usize, record_end: usize, offset: usize) -> String {
+    pub fn extract_definition(
+        record_block_compressed: &mut Vec<u8>,
+        record_start: usize,
+        record_end: usize,
+        offset: usize,
+    ) -> String {
         let record_block_type = &record_block_compressed[0..4];
         let adler32_bytes = &record_block_compressed[4..8];
         let mut record_block_decompressed = Vec::new();
@@ -209,15 +250,22 @@ fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) ->
                 panic!("record block adler32 checksum failed");
             }
         }
-        b"\x01\x00\x00\x00" => { println!("\x01\x00\x00\x00") }
-        b"\x00\x00\x00\x00" => { println!("\x00\x00\x00\x00") }
+        b"\x01\x00\x00\x00" => {
+            println!("\x01\x00\x00\x00")
+        }
+        b"\x00\x00\x00\x00" => {
+            println!("\x00\x00\x00\x00")
+        }
         _ => {}
     }
     (record_block_decompressed, _type)
 }
 
 /// return <compressed size, decompressed size>
-pub fn decode_key_block_info(key_block_info_compressed: &Vec<u8>, header: &Header) -> Vec<(usize, usize)> {
+pub fn decode_key_block_info(
+    key_block_info_compressed: &Vec<u8>,
+    header: &Header,
+) -> Vec<(usize, usize)> {
     let first4 = &key_block_info_compressed[0..4];
     let mut adler32_bytes = &key_block_info_compressed[4..8];
     let data = &key_block_info_compressed[8..];
@@ -247,7 +295,11 @@ pub fn decode_key_block_info(key_block_info_compressed: &Vec<u8>, header: &Heade
         decompressed_key_block_info_bytes = z.finish().unwrap();
 
         //data now is decrypted, then decompress
-        if !adler32_checksum(&decompressed_key_block_info_bytes, &adler32_bytes, Endian::BE) {
+        if !adler32_checksum(
+            &decompressed_key_block_info_bytes,
+            &adler32_bytes,
+            Endian::BE,
+        ) {
             panic!("key_block_info adler32 checksum failed!")
         }
     }
@@ -265,28 +317,45 @@ pub fn decode_key_block_info(key_block_info_compressed: &Vec<u8>, header: &Heade
     let mut i = 0;
     let mut key_block_info_list: Vec<(usize, usize)> = vec![];
     while i < decompressed_key_block_info_bytes.len() {
-        _num_enteries += unpack_u64(&decompressed_key_block_info_bytes[i..(i + num_width)], Endian::BE);
+        _num_enteries += unpack_u64(
+            &decompressed_key_block_info_bytes[i..(i + num_width)],
+            Endian::BE,
+        );
         i += num_width;
-        let text_head_size = unpack_u16(&decompressed_key_block_info_bytes[i..(i + byte_width)], Endian::BE);
+        let text_head_size = unpack_u16(
+            &decompressed_key_block_info_bytes[i..(i + byte_width)],
+            Endian::BE,
+        );
         i += byte_width;
         i += (text_head_size + text_term) as usize;
-        let text_tail_size = unpack_u16(&decompressed_key_block_info_bytes[i..(i + byte_width)], Endian::BE);
+        let text_tail_size = unpack_u16(
+            &decompressed_key_block_info_bytes[i..(i + byte_width)],
+            Endian::BE,
+        );
         i += byte_width;
         i += (text_tail_size + text_term) as usize;
 
-        let key_block_compressed_size = unpack_u64(&decompressed_key_block_info_bytes[i..(i + num_width)], Endian::BE);
+        let key_block_compressed_size = unpack_u64(
+            &decompressed_key_block_info_bytes[i..(i + num_width)],
+            Endian::BE,
+        );
         i += num_width;
-        let key_block_decompressed_size = unpack_u64(&decompressed_key_block_info_bytes[i..(i + num_width)], Endian::BE);
+        let key_block_decompressed_size = unpack_u64(
+            &decompressed_key_block_info_bytes[i..(i + num_width)],
+            Endian::BE,
+        );
         i += num_width;
-        key_block_info_list.push((key_block_compressed_size as usize, key_block_decompressed_size as usize))
+        key_block_info_list.push((
+            key_block_compressed_size as usize,
+            key_block_decompressed_size as usize,
+        ))
     }
     return key_block_info_list;
 }
 
-
 fn get_key_block_info_decrypt_key(adler32_bytes: &mut &[u8]) -> Vec<u8> {
-    let fix: Vec<u8> = vec![0x95, 0x36, 0x00, 0x00];//0x3695 in little endian
-    // create a RIPEMD-128 hasher instance
+    let fix: Vec<u8> = vec![0x95, 0x36, 0x00, 0x00]; //0x3695 in little endian
+                                                     // create a RIPEMD-128 hasher instance
     let mut hasher = Ripemd128::new();
     hasher.input([&adler32_bytes, &fix[..]].concat());
     // acquire hash digest in the form of GenericArray,
@@ -295,7 +364,10 @@ fn get_key_block_info_decrypt_key(adler32_bytes: &mut &[u8]) -> Vec<u8> {
     ga.as_slice().iter().cloned().collect()
 }
 
-fn decode_key_block(all_key_block_bytes: &Vec<u8>, key_block_info_list: &Vec<(usize, usize)>) -> Vec<KeyIndex> {
+fn decode_key_block(
+    all_key_block_bytes: &Vec<u8>,
+    key_block_info_list: &Vec<(usize, usize)>,
+) -> Vec<KeyIndex> {
     let mut key_list: Vec<KeyIndex> = vec![];
     let mut i = 0;
     let mut end: usize = i;
@@ -324,12 +396,11 @@ fn decode_key_block(all_key_block_bytes: &Vec<u8>, key_block_info_list: &Vec<(us
     return key_list;
 }
 
-
 /// 将一个key block 中的多个 key_id,key_text解析出来得到一个Vec<KeyIndex>
 fn split_key_block(key_block: &Vec<u8>, key_index_list: &mut Vec<KeyIndex>) {
     let num_width: usize = 8;
     let mut key_start = 0; //一个keyIndex的起点
-    let mut key_end = 0;//一个keyIndex的终点
+    let mut key_end = 0; //一个keyIndex的终点
 
     let delimiter = b"\x00";
     let delimiter_width = 1;
@@ -346,11 +417,10 @@ fn split_key_block(key_block: &Vec<u8>, key_index_list: &mut Vec<KeyIndex>) {
             }
             text_start += delimiter_width;
         }
-        let key_text = std::str::from_utf8(&key_block[(key_start + num_width)..(key_end)]).unwrap().to_string();
+        let key_text = std::str::from_utf8(&key_block[(key_start + num_width)..(key_end)])
+            .unwrap()
+            .to_string();
         key_start = key_end + delimiter_width;
-        key_index_list.push(KeyIndex {
-            key_id,
-            key_text,
-        });
+        key_index_list.push(KeyIndex { key_id, key_text });
     }
 }

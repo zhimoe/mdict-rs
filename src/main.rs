@@ -1,16 +1,19 @@
+use std::arch::asm;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 use actix_files as fs;
-use actix_web::{App, HttpResponse, HttpServer, middleware, Result, web};
-use rusqlite::{Connection, named_params, params};
+use actix_web::web::service;
+use actix_web::{middleware, web, App, HttpResponse, HttpServer, Result};
+use rusqlite::{named_params, params, Connection};
 use serde_derive::Deserialize;
 
 use crate::mdict::mdx::Mdx;
 use crate::mdict::record::RecordIndex;
 
 mod checksum;
+mod lucky;
 mod mdict;
 mod number;
 mod unpack;
@@ -21,7 +24,9 @@ fn query(word: String) -> String {
     let w = word;
     let db_file = format!("{}{}", MDX_PATH, ".db");
     let conn = Connection::open(&db_file).unwrap();
-    let mut stmt = conn.prepare("select * from MDX_INDEX WHERE key_text= :word;").unwrap();
+    let mut stmt = conn
+        .prepare("select * from MDX_INDEX WHERE key_text= :word;")
+        .unwrap();
     println!("query params={}", &w);
     let mut rows = stmt.query(named_params! { ":word": w }).unwrap();
     let row = rows.next().unwrap();
@@ -38,18 +43,23 @@ fn query(word: String) -> String {
         };
 
         let mut reader = BufReader::new(File::open(&MDX_PATH).unwrap());
-        reader.seek(SeekFrom::Start(idx.file_pos as u64)).expect("reader seek error");
+        reader
+            .seek(SeekFrom::Start(idx.file_pos as u64))
+            .expect("reader seek error");
 
         let mut record_block_compressed: Vec<u8> = vec![0; idx.compressed_size as usize];
-        reader.read_exact(&mut record_block_compressed).expect("read record_block_compressed error ");
-        return Mdx::extract_definition(&mut record_block_compressed,
-                                       idx.record_start as usize,
-                                       idx.record_end as usize,
-                                       idx.offset as usize);
+        reader
+            .read_exact(&mut record_block_compressed)
+            .expect("read record_block_compressed error ");
+        return Mdx::extract_definition(
+            &mut record_block_compressed,
+            idx.record_start as usize,
+            idx.record_end as usize,
+            idx.offset as usize,
+        );
     }
     return "not found".to_string();
 }
-
 
 fn indexing(conn: &mut Connection, mdx: &Mdx) {
     conn.execute(
@@ -64,26 +74,28 @@ fn indexing(conn: &mut Connection, mdx: &Mdx) {
                 offset integer
          )",
         params![],
-    ).expect("create db error");
+    )
+    .expect("create db error");
 
     let tx = conn.transaction().unwrap();
     for r in &mdx.records {
         tx.execute(
             "INSERT INTO MDX_INDEX VALUES (?,?,?,?,?,?,?,?)",
             params![
-            r.key_text,
-            r.file_pos,
-            r.compressed_size,
-            r.decompressed_size,
-            r.record_block_type,
-            r.record_start,
-            r.record_end,
-            r.offset],
-        ).expect("insert MDX_INDEX table error");
+                r.key_text,
+                r.file_pos,
+                r.compressed_size,
+                r.decompressed_size,
+                r.record_block_type,
+                r.record_start,
+                r.record_end,
+                r.offset
+            ],
+        )
+        .expect("insert MDX_INDEX table error");
     }
     tx.commit().expect("transaction commit error");
 }
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -105,17 +117,18 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
 
 fn app_config(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("")
-            .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/query").route(web::post().to(handle_query)))
-            .service(fs::Files::new("/", "resources/static"))
+            .service(web::resource("/lucky").route(web::get().to(handle_lucky)))
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(fs::Files::new("/", "resources/static")),
     );
 }
 
@@ -134,4 +147,11 @@ async fn handle_query(params: web::Form<QueryForm>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok()
         .content_type("text/plain")
         .body(format!("{}", query(params.word.clone()))))
+}
+
+async fn handle_lucky() -> Result<HttpResponse> {
+    let word = lucky::lucky_word();
+    Ok(HttpResponse::Ok()
+        .content_type("text/plain")
+        .body(format!("{}", query(word))))
 }

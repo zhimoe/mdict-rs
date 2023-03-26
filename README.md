@@ -7,7 +7,7 @@ it is at an early stage of development, now only support mdx version 2.0 with en
 
 ### usage
 ```bash
-# put your mdx file in mdx/ folder and change the MDX_PATH in main.rs
+# put your mdx file in mdx/ folder and change the MDX_PATH in demo
 # if your mdx has separate css file, put it in static/ folder
 cargo run
 

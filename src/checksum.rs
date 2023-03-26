@@ -2,7 +2,6 @@ use adler32::RollingAdler32;
 
 use crate::unpack::Endian;
 
-
 use super::unpack;
 
 pub fn adler32_checksum(contents: &Vec<u8>, adler32_bytes: &[u8], byteorder: Endian) -> bool {
@@ -20,9 +19,8 @@ pub fn adler32_checksum(contents: &Vec<u8>, adler32_bytes: &[u8], byteorder: End
     false
 }
 
-
 #[test]
-fn main() {
+fn test() {
     let contents = "abcdefghi";
     let mut rolling_adler32 = RollingAdler32::new();
     rolling_adler32.update_buffer(&contents.as_bytes());

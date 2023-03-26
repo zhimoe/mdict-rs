@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+
 use regex::Regex;
+
 use crate::unpack::utf16_string_le;
 
 /// Header raw分为三段:
@@ -36,19 +38,26 @@ impl Header {
     pub fn build_from_bytes(header_bytes: Vec<u8>) -> Self {
         // header text in utf-16 encoding ending with '\x00\x00'
         let (header, _end) = header_bytes.split_at(header_bytes.len() - 2);
-        let header_txt = utf16_string_le(&header).expect("convert slice to utf16 string in little endian");
+        let header_txt =
+            utf16_string_le(&header).expect("convert slice to utf16 string in little endian");
 
         let mut _header_map: HashMap<String, String> = HashMap::new();
         let re = Regex::new(r#"(\w+)=["](.*?)["]"#).unwrap();
         let cap_matches = re.captures_iter(header_txt.as_str());
         for cap in cap_matches {
-            _header_map.insert(cap.get(1).unwrap().as_str().to_string(),
-                               cap.get(2).unwrap().as_str().to_string());
+            _header_map.insert(
+                cap.get(1).unwrap().as_str().to_string(),
+                cap.get(2).unwrap().as_str().to_string(),
+            );
         }
         println!("the header map {:?}", &_header_map);
 
         return Header {
-            engine_version: _header_map.get("GeneratedByEngineVersion").unwrap().parse::<f32>().unwrap(),
+            engine_version: _header_map
+                .get("GeneratedByEngineVersion")
+                .unwrap()
+                .parse::<f32>()
+                .unwrap(),
             format: _header_map.get("Format").unwrap().to_string(),
             key_case_sensitive: _header_map.get("KeyCaseSensitive").unwrap() == "Yes",
             strip_key: _header_map.get("StripKey").unwrap() == "Yes",
