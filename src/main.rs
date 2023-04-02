@@ -128,7 +128,7 @@ fn app_config(config: &mut web::ServiceConfig) {
             .service(web::resource("/query").route(web::post().to(handle_query)))
             .service(web::resource("/lucky").route(web::get().to(handle_lucky)))
             .service(web::resource("/").route(web::get().to(index)))
-            .service(fs::Files::new("/", "resources/static")),
+            .service(fs::Files::new("/", "resources/static")), // 必须放在最后，否则会屏蔽其他route
     );
 }
 
