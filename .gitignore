@@ -11,7 +11,8 @@ Cargo.lock
 
 
 .idea/
-
+.DS_Store
 *.mdx
 *.mdx.db
 mdx/
+
