@@ -1,10 +1,4 @@
-use std::arch::asm;
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::PathBuf;
-
-use actix_files as fs;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer, Result};
+use actix_web::{web, HttpResponse, Result};
 use serde_derive::Deserialize;
 
 use crate::lucky;
@@ -13,12 +7,6 @@ use crate::query::query;
 #[derive(Deserialize, Debug)]
 pub struct QueryForm {
     word: String,
-}
-
-pub async fn handle_index() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../resources/static/index.html")))
 }
 
 pub async fn handle_query(params: web::Form<QueryForm>) -> Result<HttpResponse> {

@@ -1,19 +1,14 @@
-use std::arch::asm;
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::{Read, Seek};
 use std::path::PathBuf;
 
-use actix_files as fs;
-use actix_web::web::service;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer, Result};
-use rusqlite::{named_params, params, Connection};
-use serde_derive::Deserialize;
+use actix_files;
+use actix_web::{middleware, web, App, HttpServer};
+use rusqlite::Connection;
 
 use handlers::{handle_index, handle_lucky, handle_query};
 use indexing::indexing;
 
 use crate::mdict::mdx::Mdx;
-use crate::mdict::record::RecordIndex;
 
 mod checksum;
 mod handlers;
@@ -56,7 +51,6 @@ fn app_config(config: &mut web::ServiceConfig) {
         web::scope("")
             .service(web::resource("/query").route(web::post().to(handle_query)))
             .service(web::resource("/lucky").route(web::get().to(handle_lucky)))
-            .service(web::resource("/").route(web::get().to(handle_index)))
-            .service(fs::Files::new("/", "resources/static")), // 必须放在最后，否则会屏蔽其他route
+            .service(actix_files::Files::new("/", "resources/static").index_file("index.html")), // 必须放在最后，否则会屏蔽其他route
     );
 }
