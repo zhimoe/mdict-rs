@@ -1,17 +1,14 @@
 use std::iter::Iterator;
 
-use rand;
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
 pub fn lucky_word() -> String {
-    let mut rng = rand::thread_rng();
-    let s = string_lines;
-    let word_list: Vec<&str> = s.lines().collect();
-    let len = word_list.len();
-    return word_list[rng.gen_range(0..len)].to_string();
+    let word_list: Vec<&str> = STRING_LINES.lines().collect();
+    let random_index = thread_rng().gen_range(0..word_list.len());
+    return word_list[random_index].to_string();
 }
 
-const string_lines: &str = r#"abjure
+const STRING_LINES: &str = r#"abjure
 abrogate
 abstemious
 acumen

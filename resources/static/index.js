@@ -78,6 +78,21 @@ $(document).on('click', '#lucky-btn', function (e) {
             } else {
                 $('#mdx-resp').hide();
             }
+            $('#word').val(parserWordFromResp(data))
         }
     });
 });
+
+
+function parserWordFromResp(data) {
+    let el = document.createElement('html');
+    el.innerHTML = data;
+    let top_g = el.getElementsByClassName("top-g")[0]
+    if (top_g == null) {
+        console.log("top-g is null");
+        return "";
+    }
+
+    return top_g.firstElementChild.innerHTML.split('·').join('')
+
+}
