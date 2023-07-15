@@ -1,16 +1,8 @@
-use std::arch::asm;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::PathBuf;
 
-use actix_files as fs;
-use actix_web::web::service;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer, Result};
-use rusqlite::{named_params, params, Connection};
-use serde_derive::Deserialize;
+use rusqlite::{named_params, Connection};
 
-use crate::handlers::{handle_index, handle_lucky, handle_query};
-use crate::indexing::indexing;
 use crate::mdict::mdx::Mdx;
 use crate::mdict::record::RecordIndex;
 

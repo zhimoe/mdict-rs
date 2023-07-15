@@ -5,7 +5,7 @@ use actix_files;
 use actix_web::{middleware, web, App, HttpServer};
 use rusqlite::Connection;
 
-use handlers::{handle_index, handle_lucky, handle_query};
+use handlers::{handle_lucky, handle_query};
 use indexing::indexing;
 
 use crate::mdict::mdx::Mdx;
