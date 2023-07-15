@@ -1,3 +1,5 @@
+use std::string::FromUtf16Error;
+
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
 pub enum Endian {
@@ -36,9 +38,13 @@ pub fn unpack_u64(bytes: &[u8], byteorder: Endian) -> u64 {
 }
 
 /// bytes to utf16 string, equals python bytes.decode("utf-16").encode("utf-8")
-pub fn utf16_string_le(slice: &[u8]) -> Option<String> {
-    let idx = slice.len() / 2;
-    let iter = (0..idx)
-        .map(|i| u16::from_le_bytes([slice[2 * i], slice[2 * i + 1]]));
-    std::char::decode_utf16(iter).collect::<Result<String, _>>().ok()
+pub fn utf16_string_le(slice: &[u8]) -> Result<String, FromUtf16Error> {
+    let packets = slice
+        .chunks(2)
+        .map(|e| u16::from_le_bytes(e.try_into().unwrap()))
+        .collect::<Vec<_>>();
+    String::from_utf16(&packets)
 }
+
+#[test]
+fn utf16_string_le_test() {}
