@@ -1,8 +1,8 @@
-use std::io::{Read, Seek};
 use std::path::PathBuf;
 
 use actix_files;
 use actix_web::{middleware, web, App, HttpServer};
+use pretty_env_logger;
 use rusqlite::Connection;
 
 use handlers::{handle_lucky, handle_query};
@@ -23,6 +23,7 @@ const MDX_PATH: &str = "resources/mdx/en/牛津高阶8.mdx";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    pretty_env_logger::init();
     let mdx = Mdx::new(MDX_PATH);
     let db_file = format!("{}{}", &mdx.filepath, ".db");
 

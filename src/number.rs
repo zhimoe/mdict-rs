@@ -38,4 +38,3 @@ pub fn read_number(reader: &mut BufReader<File>, width: usize) -> usize {
         _ => 0,
     };
 }
-

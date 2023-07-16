@@ -4,16 +4,20 @@ version = "0.1.0"
 authors = ["zhimoe"]
 edition = "2021"
 
+[env]
+RUST_LOG = "info"
+
 [[bin]]
 name = "demo"
 path = "src/bin/demo.rs"
 
 [dependencies]
 pretty_env_logger = "0.5.0"
+log = "*"
 serde_derive = "1.0"
 serde = "1.0"
 serde_json = "1.0"
-derive_builder = "*"
+
 tokio = { version = "1.23.0", features = ["full"] }
 actix-utils = "3"
 actix-web = "4"

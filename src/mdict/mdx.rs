@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 
 use flate2::write::ZlibDecoder;
+use log::{debug, info};
 use ripemd128::{Digest, Ripemd128};
 
 use crate::checksum::adler32_checksum;
@@ -27,13 +28,13 @@ pub struct Mdx {
 
 impl Mdx {
     pub fn new(file: &str) -> Mdx {
-        let mut reader = BufReader::new(File::open(&file).unwrap());
+        let mut reader = BufReader::new(File::open(&file)?);
         let mut bytes4 = [0; 4];
         reader
             .read_exact(&mut bytes4)
             .expect("read exact 4 bytes error");
         let header_len = unpack_u32(&bytes4, Endian::BE);
-        println!("the header len is {}", &header_len);
+        info!("the header len is {}", &header_len);
         let mut header_bytes = vec![0; header_len as usize];
         reader
             .read_exact(&mut header_bytes)
@@ -44,13 +45,13 @@ impl Mdx {
         reader
             .read_exact(&mut adler32_bytes)
             .expect("read adler32_bytes error");
-        println!(
+        info!(
             "the adler32 int is {}",
             unpack_u32(&adler32_bytes, Endian::LE)
         );
 
         if adler32_checksum(&header_bytes, &adler32_bytes, Endian::LE) {
-            println!("header bytes adler32_checksum success")
+            info!("header bytes adler32_checksum success")
         } else {
             panic!("unrecognized format");
         }
@@ -59,7 +60,7 @@ impl Mdx {
         let pos = reader
             .seek(SeekFrom::Current(0))
             .expect("get current file position error");
-        println!("### key_block_offset is {}", &pos);
+        info!("key_block_offset is {}", &pos);
         header.key_block_offset = pos;
 
         // parser key block
@@ -82,7 +83,7 @@ impl Mdx {
 
         if header.engine_version >= 2.0 {
             let key_block_info_decompress_bytes_size = meta_number_bytes.read_number().unwrap();
-            println!(
+            info!(
                 "key_block_info_decompress_bytes_size={}",
                 key_block_info_decompress_bytes_size
             );
@@ -98,7 +99,7 @@ impl Mdx {
                 .expect("read exact error");
 
             if adler32_checksum(&key_block_meta_bytes, &adler32_bytes, Endian::BE) {
-                println!("key block info adler32 checksum success")
+                info!("key block info adler32 checksum success")
             } else {
                 panic!("key block info adler32 checksum error, unrecognized format");
             }
@@ -118,8 +119,9 @@ impl Mdx {
             .seek(SeekFrom::Current(0))
             .expect("get current file position error");
 
-        let key_block_codec_size_list = decode_key_block_info(&key_block_info_bytes, &header); //(key_block_compressed_size, key_block_decompressed_size)
-        println!(
+        let key_block_codec_size_list = decode_key_block_info(&key_block_info_bytes, &header);
+        //(key_block_compressed_size, key_block_decompressed_size)
+        info!(
             "key_block_codec_size_list.len={} ,key_block_codec_size_list = {:?}",
             &key_block_codec_size_list.len(),
             &key_block_codec_size_list,
@@ -276,7 +278,7 @@ pub fn decode_key_block_info(
         let encrypted = header.encrypted.parse::<u32>().unwrap();
         // 如果key block info编码,先解码
         if &encrypted & 0x02 == 0x02 {
-            println!("key block info bytes encrypted");
+            debug!("key block info bytes encrypted");
             let key = get_key_block_info_decrypt_key(&mut adler32_bytes);
             let mut previous: u8 = 0x36;
             for i in 0..data.len() {
@@ -286,7 +288,7 @@ pub fn decode_key_block_info(
                 decrypted_compressed_bytes[i] = t;
             }
         } else {
-            println!("key block info bytes not encrypted");
+            debug!("key block info bytes not encrypted");
             decrypted_compressed_bytes = Vec::from(data.clone());
         }
 

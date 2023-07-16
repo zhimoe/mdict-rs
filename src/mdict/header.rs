@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use log::info;
 use regex::Regex;
 
-use crate::unpack::utf16_string_le;
+use crate::unpack::string_from_utf16_le;
 
 /// Header raw分为三段:
 /// bytes len of dict info(4 bytes int),
@@ -37,38 +38,36 @@ impl Header {
     /// build header info from bytes
     pub fn build_from_bytes(header_bytes: Vec<u8>) -> Self {
         // header text in utf-16 encoding ending with '\x00\x00'
-        let (header, _end) = header_bytes.split_at(header_bytes.len() - 2);
+        let header = &header_bytes[..header_bytes.len() - 2];
         let header_txt =
-            utf16_string_le(&header).expect("convert slice to utf16 string in little endian");
+            string_from_utf16_le(&header).expect("convert slice to utf16 string in little endian");
+        info!("header_text {}", &header_txt);
 
         let mut _header_map: HashMap<String, String> = HashMap::new();
-        let re = Regex::new(r#"(\w+)=["](.*?)["]"#).unwrap();
-        let cap_matches = re.captures_iter(header_txt.as_str());
-        for cap in cap_matches {
-            _header_map.insert(
-                cap.get(1).unwrap().as_str().to_string(),
-                cap.get(2).unwrap().as_str().to_string(),
-            );
+        let re = Regex::new(r#"(\w+)="(.*?)""#).unwrap();
+        for cap in re.captures_iter(header_txt.as_str()) {
+            let key = cap[1].to_string();
+            let value = cap[2].to_string();
+            _header_map.insert(key, value);
         }
-        println!("the header map {:?}", &_header_map);
-
+        info!("header_map {:?}", &_header_map);
         return Header {
             engine_version: _header_map
                 .get("GeneratedByEngineVersion")
                 .unwrap()
                 .parse::<f32>()
                 .unwrap(),
-            format: _header_map.get("Format").unwrap().to_string(),
-            key_case_sensitive: _header_map.get("KeyCaseSensitive").unwrap() == "Yes",
-            strip_key: _header_map.get("StripKey").unwrap() == "Yes",
-            encrypted: _header_map.get("Encrypted").unwrap().to_string(),
-            register_by: _header_map.get("RegisterBy").unwrap().to_string(),
-            encoding: _header_map.get("Encoding").unwrap().to_string(),
-            creation_date: _header_map.get("Encoding").unwrap().to_string(),
-            compact: _header_map.get("Compact").unwrap() == "Yes",
-            left2right: _header_map.get("Left2Right").unwrap() == "Yes",
-            datasource_format: _header_map.get("DataSourceFormat").unwrap().to_string(),
-            stylesheet: _header_map.get("StyleSheet").unwrap().to_string(),
+            format: _header_map["Format"].clone(),
+            key_case_sensitive: _header_map["KeyCaseSensitive"] == "Yes",
+            strip_key: _header_map["StripKey"] == "Yes",
+            encrypted: _header_map["Encrypted"].clone(),
+            register_by: _header_map["RegisterBy"].clone(),
+            encoding: _header_map["Encoding"].clone(),
+            creation_date: _header_map["CreationDate"].clone(),
+            compact: _header_map["Compact"] == "Yes",
+            left2right: _header_map["Left2Right"] == "Yes",
+            datasource_format: _header_map["DataSourceFormat"].clone(),
+            stylesheet: _header_map["StyleSheet"].clone(),
             key_block_offset: 0,
             record_block_offset: 0,
         };
