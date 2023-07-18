@@ -7,7 +7,7 @@ use ripemd128::{Digest, Ripemd128};
 
 use crate::checksum::adler32_checksum;
 use crate::number::{read_number, NumberBytes};
-use crate::unpack::{unpack_u16, unpack_u32, unpack_u64, Endian};
+use crate::unpack::{unpack, Endian};
 
 use super::header::Header;
 use super::key::KeyIndex;
@@ -28,12 +28,12 @@ pub struct Mdx {
 
 impl Mdx {
     pub fn new(file: &str) -> Mdx {
-        let mut reader = BufReader::new(File::open(&file)?);
+        let mut reader = BufReader::new(File::open(&file).unwrap());
         let mut bytes4 = [0; 4];
         reader
             .read_exact(&mut bytes4)
             .expect("read exact 4 bytes error");
-        let header_len = unpack_u32(&bytes4, Endian::BE);
+        let header_len = unpack::<u32>(&bytes4, Endian::BE);
         info!("the header len is {}", &header_len);
         let mut header_bytes = vec![0; header_len as usize];
         reader
@@ -47,7 +47,7 @@ impl Mdx {
             .expect("read adler32_bytes error");
         info!(
             "the adler32 int is {}",
-            unpack_u32(&adler32_bytes, Endian::LE)
+            unpack::<u32>(&adler32_bytes, Endian::LE)
         );
 
         if adler32_checksum(&header_bytes, &adler32_bytes, Endian::LE) {
@@ -319,30 +319,30 @@ pub fn decode_key_block_info(
     let mut i = 0;
     let mut key_block_info_list: Vec<(usize, usize)> = vec![];
     while i < decompressed_key_block_info_bytes.len() {
-        _num_enteries += unpack_u64(
+        _num_enteries += unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
         );
         i += num_width;
-        let text_head_size = unpack_u16(
+        let text_head_size = unpack::<u16>(
             &decompressed_key_block_info_bytes[i..(i + byte_width)],
             Endian::BE,
         );
         i += byte_width;
         i += (text_head_size + text_term) as usize;
-        let text_tail_size = unpack_u16(
+        let text_tail_size = unpack::<u16>(
             &decompressed_key_block_info_bytes[i..(i + byte_width)],
             Endian::BE,
         );
         i += byte_width;
         i += (text_tail_size + text_term) as usize;
 
-        let key_block_compressed_size = unpack_u64(
+        let key_block_compressed_size = unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
         );
         i += num_width;
-        let key_block_decompressed_size = unpack_u64(
+        let key_block_decompressed_size = unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
         );
@@ -409,7 +409,7 @@ fn split_key_block(key_block: &Vec<u8>, key_index_list: &mut Vec<KeyIndex>) {
 
     while key_start < key_block.len() {
         let slice = &key_block[key_start..(key_start + num_width)];
-        let key_id = unpack_u64(slice, Endian::BE);
+        let key_id = unpack::<u64>(slice, Endian::BE);
 
         let mut text_start = key_start + num_width;
         while text_start < key_block.len() {
