@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 
+use log::info;
 use rusqlite::{named_params, Connection};
 
 use crate::mdict::mdx::Mdx;
@@ -15,7 +16,7 @@ pub fn query(word: String) -> String {
     let mut stmt = conn
         .prepare("select * from MDX_INDEX WHERE key_text= :word;")
         .unwrap();
-    println!("query params={}", &w);
+    info!("query params={}", &w);
     let mut rows = stmt.query(named_params! { ":word": w }).unwrap();
     let row = rows.next().unwrap();
     if let Some(row) = row {
