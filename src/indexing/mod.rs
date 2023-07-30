@@ -1,8 +1,9 @@
+use anyhow::Context;
 use rusqlite::{params, Connection};
 
 use crate::mdict::mdx::Mdx;
 
-pub(crate) fn indexing(conn: &mut Connection, mdx: &Mdx) {
+pub fn indexing_mdx_into_db(conn: &mut Connection, mdx: &Mdx) -> anyhow::Result<()> {
     conn.execute(
         "create table if not exists MDX_INDEX (
                 key_text text not null,
@@ -16,9 +17,11 @@ pub(crate) fn indexing(conn: &mut Connection, mdx: &Mdx) {
          )",
         params![],
     )
-    .expect("create db error");
+    .with_context(|| "create table failed")?;
 
-    let tx = conn.transaction().unwrap();
+    let tx = conn
+        .transaction()
+        .with_context(|| "get transaction from connection failed")?;
     for r in &mdx.records {
         tx.execute(
             "INSERT INTO MDX_INDEX VALUES (?,?,?,?,?,?,?,?)",
@@ -33,7 +36,8 @@ pub(crate) fn indexing(conn: &mut Connection, mdx: &Mdx) {
                 r.offset
             ],
         )
-        .expect("insert MDX_INDEX table error");
+        .with_context(|| "insert MDX_INDEX table error")?;
     }
-    tx.commit().expect("transaction commit error");
+    tx.commit().with_context(|| "transaction commit error")?;
+    Ok(())
 }

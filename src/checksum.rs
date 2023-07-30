@@ -1,20 +1,11 @@
 use adler32::RollingAdler32;
 
-use crate::unpack::{unpack, Endian};
-
-pub fn adler32_checksum(contents: &Vec<u8>, adler32_bytes: &[u8], byteorder: Endian) -> bool {
-    let adler32 = match byteorder {
-        Endian::BE => unpack::<u32>(adler32_bytes, Endian::BE),
-        Endian::LE => unpack::<u32>(adler32_bytes, Endian::LE),
-    };
-
+/// adler32 checksum 完整性检测
+pub fn adler32_checksum(contents: &[u8], checksum: u32) -> bool {
     let mut rolling_adler32 = RollingAdler32::new();
     rolling_adler32.update_buffer(contents);
     let hash = rolling_adler32.hash();
-    if hash & 0xffffffff == adler32 {
-        return true;
-    }
-    false
+    return hash & 0xffffffff == checksum;
 }
 
 #[test]

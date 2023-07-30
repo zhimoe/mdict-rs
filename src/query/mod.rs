@@ -4,14 +4,13 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use log::info;
 use rusqlite::{named_params, Connection};
 
+use crate::config::mdx_path;
 use crate::mdict::mdx::Mdx;
 use crate::mdict::record::RecordIndex;
 
-const MDX_PATH: &str = "resources/mdx/en/牛津高阶8.mdx";
-
 pub fn query(word: String) -> String {
     let w = word;
-    let db_file = format!("{}{}", MDX_PATH, ".db");
+    let db_file = format!("{}{}", mdx_path().unwrap().to_str().unwrap(), ".db");
     let conn = Connection::open(&db_file).unwrap();
     let mut stmt = conn
         .prepare("select * from MDX_INDEX WHERE key_text= :word;")
@@ -31,7 +30,8 @@ pub fn query(word: String) -> String {
             offset: row.get::<usize, i32>(7).unwrap() as u32,
         };
 
-        let mut reader = BufReader::new(File::open(&MDX_PATH).unwrap());
+        let mut reader =
+            BufReader::new(File::open(&mdx_path().unwrap().to_str().unwrap()).unwrap());
         reader
             .seek(SeekFrom::Start(idx.file_pos as u64))
             .expect("reader seek error");

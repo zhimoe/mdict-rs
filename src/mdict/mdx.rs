@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 
+use anyhow::Context;
 use flate2::write::ZlibDecoder;
 use log::{debug, info};
 use ripemd128::{Digest, Ripemd128};
@@ -27,54 +28,52 @@ pub struct Mdx {
 }
 
 impl Mdx {
-    pub fn new(file: &str) -> Mdx {
-        let mut reader = BufReader::new(File::open(&file).unwrap());
-        let mut bytes4 = [0; 4];
+    pub fn new(file: &str) -> anyhow::Result<Mdx> {
+        let mut reader = BufReader::new(File::open(&file)?);
+        let mut header_len_bytes = [0; 4];
         reader
-            .read_exact(&mut bytes4)
-            .expect("read exact 4 bytes error");
-        let header_len = unpack::<u32>(&bytes4, Endian::BE);
+            .read_exact(&mut header_len_bytes)
+            .with_context(|| "read header len bytes failed")?;
+        let header_len = unpack::<u32>(&header_len_bytes, Endian::BE)?;
         info!("the header len is {}", &header_len);
+
         let mut header_bytes = vec![0; header_len as usize];
         reader
             .read_exact(&mut header_bytes)
-            .expect("read header bytes of dict info error");
+            .with_context(|| "read header bytes of dict info error")?;
 
         // reade 4 bytes: adler32 checksum of header, in little endian
         let mut adler32_bytes = [0; 4];
         reader
             .read_exact(&mut adler32_bytes)
-            .expect("read adler32_bytes error");
-        info!(
-            "the adler32 int is {}",
-            unpack::<u32>(&adler32_bytes, Endian::LE)
-        );
+            .with_context(|| "read adler32_bytes error")?;
 
-        if adler32_checksum(&header_bytes, &adler32_bytes, Endian::LE) {
-            info!("header bytes adler32_checksum success")
+        if adler32_checksum(&header_bytes, unpack::<u32>(&adler32_bytes, Endian::LE)?) {
+            info!("header bytes adler32 checksum success")
         } else {
-            panic!("unrecognized format");
+            panic!("unrecognized mdx file format");
         }
 
-        let mut header = Header::build_from_bytes(header_bytes);
+        let mut header = Header::build_from_bytes(header_bytes)?;
         let pos = reader
             .seek(SeekFrom::Current(0))
-            .expect("get current file position error");
+            .with_context(|| "get current file position error")?;
         info!("key_block_offset is {}", &pos);
         header.key_block_offset = pos;
 
         // parser key block
         let number_width: u8 = if header.engine_version >= 2.0 { 8 } else { 4 };
-        let key_block_meta_bytes_size = if header.engine_version >= 2.0 {
+        let key_block_meta_bytes_len = if header.engine_version >= 2.0 {
             8 * 5
         } else {
             4 * 4
-        }; // 看结构图https://bitbucket.org/xwang/mdict-analysis/src/master/MDX.svg
+        };
+        // 看结构图https://bitbucket.org/xwang/mdict-analysis/src/master/MDX.svg
 
-        let mut key_block_meta_bytes = vec![0; key_block_meta_bytes_size];
+        let mut key_block_meta_bytes = vec![0; key_block_meta_bytes_len];
         reader
             .read_exact(&mut key_block_meta_bytes)
-            .expect("read key block info meta bytes error");
+            .with_context(|| "read key block info meta bytes error")?;
 
         let mut meta_number_bytes = NumberBytes::new(&key_block_meta_bytes, number_width as usize);
 
@@ -82,13 +81,13 @@ impl Mdx {
         let _entries_num = meta_number_bytes.read_number().unwrap();
 
         if header.engine_version >= 2.0 {
-            let key_block_info_decompress_bytes_size = meta_number_bytes.read_number().unwrap();
+            let key_block_info_decompress_bytes_len = meta_number_bytes.read_number().unwrap();
             info!(
                 "key_block_info_decompress_bytes_size={}",
-                key_block_info_decompress_bytes_size
+                key_block_info_decompress_bytes_len
             );
         }
-        let key_block_info_bytes_size = meta_number_bytes.read_number().unwrap();
+        let key_block_info_bytes_len = meta_number_bytes.read_number().unwrap();
         let key_blocks_bytes_num = meta_number_bytes.read_number().unwrap();
 
         // adler32 checksum of previous 5 bytes, in big endian, only version >= 2.0
@@ -96,28 +95,31 @@ impl Mdx {
             let mut adler32_bytes = [0; 4];
             reader
                 .read_exact(&mut adler32_bytes)
-                .expect("read exact error");
+                .with_context(|| "read exact error")?;
 
-            if adler32_checksum(&key_block_meta_bytes, &adler32_bytes, Endian::BE) {
+            if adler32_checksum(
+                &key_block_meta_bytes,
+                unpack::<u32>(&adler32_bytes, Endian::BE)?,
+            ) {
                 info!("key block info adler32 checksum success")
             } else {
                 panic!("key block info adler32 checksum error, unrecognized format");
             }
         }
 
-        let mut key_block_info_bytes = vec![0; key_block_info_bytes_size as usize];
+        let mut key_block_info_bytes = vec![0; key_block_info_bytes_len as usize];
         reader
             .read_exact(&mut key_block_info_bytes)
-            .expect("read exact error");
+            .with_context(|| "read exact error")?;
 
         let mut key_block_list_bytes = vec![0; key_blocks_bytes_num as usize];
         reader
             .read_exact(&mut key_block_list_bytes)
-            .expect("read exact error");
+            .with_context(|| "read exact error")?;
 
         header.record_block_offset = reader
             .seek(SeekFrom::Current(0))
-            .expect("get current file position error");
+            .with_context(|| "get current file position error")?;
 
         let key_block_codec_size_list = decode_key_block_info(&key_block_info_bytes, &header);
         //(key_block_compressed_size, key_block_decompressed_size)
@@ -154,11 +156,11 @@ impl Mdx {
         for (c_size, d_size) in record_block_codec_size_list {
             let cur_pos = reader
                 .seek(SeekFrom::Current(0))
-                .expect("get current file position error");
+                .with_context(|| "get current file position error")?;
             let mut record_block_bytes_compressed: Vec<u8> = vec![0; c_size];
             reader
                 .read_exact(&mut record_block_bytes_compressed)
-                .expect("read exact error");
+                .with_context(|| "read exact error")?;
 
             let (_record_block_decompressed, block_type) =
                 decompress_record_block_bytes(&mut record_block_bytes_compressed);
@@ -197,7 +199,7 @@ impl Mdx {
         }
 
         let version = header.engine_version.clone();
-        Mdx {
+        Ok(Mdx {
             filepath: file.to_string(),
             header,
             passcode: "".to_string(),
@@ -208,7 +210,7 @@ impl Mdx {
             num_record_blocks: 122,
             keys: key_id_text_list,
             records: record_list,
-        }
+        })
     }
 
     // util function, extract word definitions from bytes
@@ -226,7 +228,10 @@ impl Mdx {
         let mut z = ZlibDecoder::new(record_block_decompressed);
         z.write_all(&record_block_compressed[8..]).unwrap();
         record_block_decompressed = z.finish().unwrap();
-        if !adler32_checksum(&record_block_decompressed, &adler32_bytes, Endian::BE) {
+        if !adler32_checksum(
+            &record_block_decompressed,
+            unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
+        ) {
             panic!("record block adler32 checksum failed");
         }
         let s = record_start - offset;
@@ -248,7 +253,10 @@ fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) ->
             let mut z = ZlibDecoder::new(record_block_decompressed);
             z.write_all(&record_block_bytes_compressed[8..]).unwrap();
             record_block_decompressed = z.finish().unwrap();
-            if !adler32_checksum(&record_block_decompressed, &adler32_bytes, Endian::BE) {
+            if !adler32_checksum(
+                &record_block_decompressed,
+                unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
+            ) {
                 panic!("record block adler32 checksum failed");
             }
         }
@@ -299,8 +307,7 @@ pub fn decode_key_block_info(
         //data now is decrypted, then decompress
         if !adler32_checksum(
             &decompressed_key_block_info_bytes,
-            &adler32_bytes,
-            Endian::BE,
+            unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
         ) {
             panic!("key_block_info adler32 checksum failed!")
         }
@@ -322,30 +329,35 @@ pub fn decode_key_block_info(
         _num_enteries += unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
-        );
+        )
+        .unwrap();
         i += num_width;
         let text_head_size = unpack::<u16>(
             &decompressed_key_block_info_bytes[i..(i + byte_width)],
             Endian::BE,
-        );
+        )
+        .unwrap();
         i += byte_width;
         i += (text_head_size + text_term) as usize;
         let text_tail_size = unpack::<u16>(
             &decompressed_key_block_info_bytes[i..(i + byte_width)],
             Endian::BE,
-        );
+        )
+        .unwrap();
         i += byte_width;
         i += (text_tail_size + text_term) as usize;
 
         let key_block_compressed_size = unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
-        );
+        )
+        .unwrap();
         i += num_width;
         let key_block_decompressed_size = unpack::<u64>(
             &decompressed_key_block_info_bytes[i..(i + num_width)],
             Endian::BE,
-        );
+        )
+        .unwrap();
         i += num_width;
         key_block_info_list.push((
             key_block_compressed_size as usize,
@@ -409,7 +421,7 @@ fn split_key_block(key_block: &Vec<u8>, key_index_list: &mut Vec<KeyIndex>) {
 
     while key_start < key_block.len() {
         let slice = &key_block[key_start..(key_start + num_width)];
-        let key_id = unpack::<u64>(slice, Endian::BE);
+        let key_id = unpack::<u64>(slice, Endian::BE).unwrap();
 
         let mut text_start = key_start + num_width;
         while text_start < key_block.len() {

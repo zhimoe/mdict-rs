@@ -36,11 +36,10 @@ pub struct Header {
 
 impl Header {
     /// build header info from bytes
-    pub fn build_from_bytes(header_bytes: Vec<u8>) -> Self {
+    pub fn build_from_bytes(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
         // header text in utf-16 encoding ending with '\x00\x00'
         let header = &header_bytes[..header_bytes.len() - 2];
-        let header_txt =
-            string_from_utf16_le(&header).expect("convert slice to utf16 string in little endian");
+        let header_txt = string_from_utf16_le(&header)?;
         info!("header_text {}", &header_txt);
 
         let mut _header_map: HashMap<String, String> = HashMap::new();
@@ -51,7 +50,7 @@ impl Header {
             _header_map.insert(key, value);
         }
         info!("header_map {:?}", &_header_map);
-        return Header {
+        Ok(Header {
             engine_version: _header_map
                 .get("GeneratedByEngineVersion")
                 .unwrap()
@@ -70,6 +69,6 @@ impl Header {
             stylesheet: _header_map["StyleSheet"].clone(),
             key_block_offset: 0,
             record_block_offset: 0,
-        };
+        })
     }
 }
