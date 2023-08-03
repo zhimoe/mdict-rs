@@ -13,15 +13,13 @@ use indexing::indexing_mdx_into_db;
 use crate::config::mdx_path;
 use crate::mdict::mdx::Mdx;
 
-mod checksum;
 mod config;
 mod handlers;
 mod indexing;
 mod lucky;
 mod mdict;
-mod number;
 mod query;
-mod unpack;
+mod util;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {

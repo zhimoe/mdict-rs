@@ -12,7 +12,6 @@ pub fn mdx_path() -> anyhow::Result<PathBuf> {
 
 pub fn static_path() -> anyhow::Result<PathBuf> {
     let mut path: PathBuf = env!("CARGO_MANIFEST_DIR").into();
-    println!("current path is {}", &path.display());
     path.push("resources/static");
     Ok(path)
 }

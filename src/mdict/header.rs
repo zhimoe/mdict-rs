@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use log::info;
 use regex::Regex;
 
-use crate::unpack::string_from_utf16_le;
+use crate::util::string::string_from_utf16_le;
 
 /// Header raw分为三段:
 /// bytes len of dict info(4 bytes int),
@@ -36,7 +36,7 @@ pub struct Header {
 
 impl Header {
     /// build header info from bytes
-    pub fn build_from_bytes(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
+    pub fn new(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
         // header text in utf-16 encoding ending with '\x00\x00'
         let header = &header_bytes[..header_bytes.len() - 2];
         let header_txt = string_from_utf16_le(&header)?;

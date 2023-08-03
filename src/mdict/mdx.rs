@@ -1,14 +1,14 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use TryInto;
 
 use anyhow::Context;
 use flate2::write::ZlibDecoder;
 use log::{debug, info};
 use ripemd128::{Digest, Ripemd128};
 
-use crate::checksum::adler32_checksum;
-use crate::number::{read_number, NumberBytes};
-use crate::unpack::{unpack, Endian};
+use crate::util::checksum::adler32_checksum;
+use crate::util::number::{read_number, NumberBytes};
 
 use super::header::Header;
 use super::key::KeyIndex;
@@ -34,7 +34,7 @@ impl Mdx {
         reader
             .read_exact(&mut header_len_bytes)
             .with_context(|| "read header len bytes failed")?;
-        let header_len = unpack::<u32>(&header_len_bytes, Endian::BE)?;
+        let header_len = u32::from_be_bytes(header_len_bytes.try_into().unwrap());
         info!("the header len is {}", &header_len);
 
         let mut header_bytes = vec![0; header_len as usize];
@@ -48,13 +48,16 @@ impl Mdx {
             .read_exact(&mut adler32_bytes)
             .with_context(|| "read adler32_bytes error")?;
 
-        if adler32_checksum(&header_bytes, unpack::<u32>(&adler32_bytes, Endian::LE)?) {
+        if adler32_checksum(
+            &header_bytes,
+            u32::from_le_bytes(adler32_bytes.try_into().unwrap()),
+        ) {
             info!("header bytes adler32 checksum success")
         } else {
             panic!("unrecognized mdx file format");
         }
 
-        let mut header = Header::build_from_bytes(header_bytes)?;
+        let mut header = Header::new(header_bytes)?;
         let pos = reader
             .seek(SeekFrom::Current(0))
             .with_context(|| "get current file position error")?;
@@ -99,7 +102,7 @@ impl Mdx {
 
             if adler32_checksum(
                 &key_block_meta_bytes,
-                unpack::<u32>(&adler32_bytes, Endian::BE)?,
+                u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
             ) {
                 info!("key block info adler32 checksum success")
             } else {
@@ -230,7 +233,7 @@ impl Mdx {
         record_block_decompressed = z.finish().unwrap();
         if !adler32_checksum(
             &record_block_decompressed,
-            unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
+            u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
         ) {
             panic!("record block adler32 checksum failed");
         }
@@ -255,7 +258,7 @@ fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) ->
             record_block_decompressed = z.finish().unwrap();
             if !adler32_checksum(
                 &record_block_decompressed,
-                unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
+                u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
             ) {
                 panic!("record block adler32 checksum failed");
             }
@@ -307,7 +310,7 @@ pub fn decode_key_block_info(
         //data now is decrypted, then decompress
         if !adler32_checksum(
             &decompressed_key_block_info_bytes,
-            unpack::<u32>(&adler32_bytes, Endian::BE).unwrap(),
+            u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
         ) {
             panic!("key_block_info adler32 checksum failed!")
         }
@@ -315,7 +318,7 @@ pub fn decode_key_block_info(
 
     //start decode
     // let mut key_block_info_list = vec![];
-    let mut _num_enteries = 0 as u64;
+    let mut _num_entries = 0u64;
     let mut byte_width = 1;
     let mut text_term = 0;
     if header.engine_version >= 2.0 {
@@ -326,38 +329,39 @@ pub fn decode_key_block_info(
     let mut i = 0;
     let mut key_block_info_list: Vec<(usize, usize)> = vec![];
     while i < decompressed_key_block_info_bytes.len() {
-        _num_enteries += unpack::<u64>(
-            &decompressed_key_block_info_bytes[i..(i + num_width)],
-            Endian::BE,
-        )
-        .unwrap();
+        _num_entries += u64::from_be_bytes(
+            (&decompressed_key_block_info_bytes[i..(i + num_width)])
+                .try_into()
+                .unwrap(),
+        );
+
         i += num_width;
-        let text_head_size = unpack::<u16>(
-            &decompressed_key_block_info_bytes[i..(i + byte_width)],
-            Endian::BE,
-        )
-        .unwrap();
+        let text_head_size = u16::from_be_bytes(
+            (&decompressed_key_block_info_bytes[i..(i + byte_width)])
+                .try_into()
+                .unwrap(),
+        );
         i += byte_width;
         i += (text_head_size + text_term) as usize;
-        let text_tail_size = unpack::<u16>(
-            &decompressed_key_block_info_bytes[i..(i + byte_width)],
-            Endian::BE,
-        )
-        .unwrap();
+        let text_tail_size = u16::from_be_bytes(
+            (&decompressed_key_block_info_bytes[i..(i + byte_width)])
+                .try_into()
+                .unwrap(),
+        );
         i += byte_width;
         i += (text_tail_size + text_term) as usize;
 
-        let key_block_compressed_size = unpack::<u64>(
-            &decompressed_key_block_info_bytes[i..(i + num_width)],
-            Endian::BE,
-        )
-        .unwrap();
+        let key_block_compressed_size = u64::from_be_bytes(
+            (&decompressed_key_block_info_bytes[i..(i + num_width)])
+                .try_into()
+                .unwrap(),
+        );
         i += num_width;
-        let key_block_decompressed_size = unpack::<u64>(
-            &decompressed_key_block_info_bytes[i..(i + num_width)],
-            Endian::BE,
-        )
-        .unwrap();
+        let key_block_decompressed_size = u64::from_be_bytes(
+            (&decompressed_key_block_info_bytes[i..(i + num_width)])
+                .try_into()
+                .unwrap(),
+        );
         i += num_width;
         key_block_info_list.push((
             key_block_compressed_size as usize,
@@ -421,8 +425,7 @@ fn split_key_block(key_block: &Vec<u8>, key_index_list: &mut Vec<KeyIndex>) {
 
     while key_start < key_block.len() {
         let slice = &key_block[key_start..(key_start + num_width)];
-        let key_id = unpack::<u64>(slice, Endian::BE).unwrap();
-
+        let key_id = u64::from_be_bytes(slice.try_into().unwrap());
         let mut text_start = key_start + num_width;
         while text_start < key_block.len() {
             if &key_block[text_start..(text_start + delimiter_width)] == delimiter {
