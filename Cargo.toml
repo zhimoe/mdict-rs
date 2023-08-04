@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["zhimoe"]
 edition = "2021"
 
+[env]
+RUST_LOG = "info"
 
 [[bin]]
 name = "demo"

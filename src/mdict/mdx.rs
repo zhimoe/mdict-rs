@@ -78,7 +78,7 @@ impl Mdx {
             .read_exact(&mut key_block_meta_bytes)
             .with_context(|| "read key block info meta bytes error")?;
 
-        let mut meta_number_bytes = NumberBytes::new(&key_block_meta_bytes, number_width as usize);
+        let mut meta_number_bytes = NumberBytes::new(&key_block_meta_bytes, number_width);
 
         let key_blocks_num = meta_number_bytes.read_number().unwrap();
         let _entries_num = meta_number_bytes.read_number().unwrap();
