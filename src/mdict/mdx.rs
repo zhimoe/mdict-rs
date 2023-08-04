@@ -8,7 +8,7 @@ use log::{debug, info};
 use ripemd128::{Digest, Ripemd128};
 
 use crate::util::checksum::adler32_checksum;
-use crate::util::number::{read_number, NumberBytes};
+use crate::util::number::{read_number_from_be_bytes, NumberBytes};
 
 use super::header::Header;
 use super::key::KeyIndex;
@@ -134,17 +134,18 @@ impl Mdx {
         let key_id_text_list = decode_key_block(&key_block_list_bytes, &key_block_codec_size_list);
 
         // parse record block
-        let record_blocks_num = read_number(&mut reader, number_width as usize);
-        let entries_num_ = read_number(&mut reader, number_width as usize);
-        let record_block_codec_list_bytes_size = read_number(&mut reader, number_width as usize);
-        let _record_block_list_bytes_size = read_number(&mut reader, number_width as usize);
+        let record_blocks_num = read_number_from_be_bytes(&mut reader, number_width);
+        let entries_num_ = read_number_from_be_bytes(&mut reader, number_width);
+        let record_block_codec_list_bytes_size =
+            read_number_from_be_bytes(&mut reader, number_width);
+        let _record_block_list_bytes_size = read_number_from_be_bytes(&mut reader, number_width);
 
         let mut record_block_codec_size_list: Vec<(usize, usize)> = vec![];
         let mut codec_bytes_counter: usize = 0;
         // read all record_block_info bytes
         for _i in 0..record_blocks_num {
-            let co_size = read_number(&mut reader, number_width as usize);
-            let dec_size = read_number(&mut reader, number_width as usize);
+            let co_size = read_number_from_be_bytes(&mut reader, number_width);
+            let dec_size = read_number_from_be_bytes(&mut reader, number_width);
             record_block_codec_size_list.push((co_size, dec_size));
             codec_bytes_counter += number_width as usize * 2;
         }
@@ -216,7 +217,7 @@ impl Mdx {
         })
     }
 
-    // util function, extract word definitions from bytes
+    /// util function, extract word definitions from bytes
     pub fn extract_definition(
         record_block_compressed: &mut Vec<u8>,
         record_start: usize,

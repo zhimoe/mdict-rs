@@ -27,14 +27,15 @@ impl NumberBytes {
     }
 }
 
-pub fn read_number(reader: &mut BufReader<File>, width: usize) -> usize {
-    let mut buf: Vec<u8> = vec![0; width];
-    reader.read_exact(&mut buf).expect("read_exact error");
-    let mut slice = &buf[..];
-    return match width {
-        8 => slice.read_u64::<BigEndian>().unwrap() as usize,
-        4 => slice.read_u32::<BigEndian>().unwrap() as usize,
-        2 => slice.read_u16::<BigEndian>().unwrap() as usize,
+pub fn read_number_from_be_bytes(reader: &mut BufReader<File>, width: u8) -> usize {
+    let mut buf = vec![0; width as usize];
+    reader
+        .read_exact(&mut buf)
+        .expect("buffer read exact error");
+    match width {
+        8 => u64::from_be_bytes(buf.try_into().unwrap()) as usize,
+        4 => u32::from_be_bytes(buf.try_into().unwrap()) as usize,
+        2 => u16::from_be_bytes(buf.try_into().unwrap()) as usize,
         _ => 0,
-    };
+    }
 }
