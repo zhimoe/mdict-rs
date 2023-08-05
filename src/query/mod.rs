@@ -6,7 +6,7 @@ use rusqlite::{named_params, Connection};
 
 use crate::config::mdx_path;
 use crate::mdict::mdx::Mdx;
-use crate::mdict::record::RecordIndex;
+use crate::mdict::record::Record;
 
 pub fn query(word: String) -> String {
     let w = word;
@@ -19,8 +19,8 @@ pub fn query(word: String) -> String {
     let mut rows = stmt.query(named_params! { ":word": w }).unwrap();
     let row = rows.next().unwrap();
     if let Some(row) = row {
-        let idx = RecordIndex {
-            key_text: row.get::<usize, String>(0).unwrap(),
+        let idx = Record {
+            record_text: row.get::<usize, String>(0).unwrap(),
             file_pos: row.get::<usize, u32>(1).unwrap() as u32,
             compressed_size: row.get::<usize, u32>(2).unwrap() as u32,
             decompressed_size: row.get::<usize, u32>(3).unwrap() as u32,

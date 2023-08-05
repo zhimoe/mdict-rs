@@ -26,7 +26,7 @@ pub fn indexing_mdx_into_db(conn: &mut Connection, mdx: &Mdx) -> anyhow::Result<
         tx.execute(
             "INSERT INTO MDX_INDEX VALUES (?,?,?,?,?,?,?,?)",
             params![
-                r.key_text,
+                r.record_text,
                 r.file_pos,
                 r.compressed_size,
                 r.decompressed_size,

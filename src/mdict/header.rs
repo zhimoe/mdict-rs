@@ -5,35 +5,6 @@ use regex::Regex;
 
 use crate::util::string::string_from_utf16_le;
 
-/// Header raw分为三段:
-/// bytes len of dict info(4 bytes int),
-/// dict info(bytes): 即下面的Header
-/// adler32 checksum(4 bytes int)
-#[derive(Debug, Default)]
-pub struct Header {
-    pub engine_version: f32,
-    // important
-    pub format: String,
-    pub key_case_sensitive: bool,
-    pub strip_key: bool,
-    /**
-     * encryption flag!
-     * 0x00 - no encryption
-     * 0x01 - encrypt record block
-     * 0x02 - encrypt key info block
-     */
-    pub encrypted: String,
-    pub register_by: String,
-    pub encoding: String,
-    pub creation_date: String,
-    pub compact: bool,
-    pub left2right: bool,
-    pub datasource_format: String,
-    pub stylesheet: String,
-    pub key_block_offset: u64,
-    pub record_block_offset: u64,
-}
-
 impl Header {
     /// build header info from bytes
     pub fn new(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
@@ -71,4 +42,51 @@ impl Header {
             record_block_offset: 0,
         })
     }
+
+    /// the number width determined by MDX file engine version
+    pub fn number_width(&self) -> u8 {
+        if self.engine_version >= 2.0 {
+            8
+        } else {
+            4
+        }
+    }
+
+    /// the key_block_meta_bytes_len determined by MDX file engine version
+    pub fn key_block_meta_bytes_size(&self) -> u8 {
+        if self.engine_version >= 2.0 {
+            self.number_width() * 5
+        } else {
+            self.number_width() * 4
+        }
+    }
+}
+
+/// Header raw分为三段:
+/// bytes len of dict info(4 bytes int),
+/// dict info(bytes): 即下面的Header
+/// adler32 checksum(4 bytes int)
+#[derive(Debug, Default)]
+pub struct Header {
+    pub engine_version: f32,
+    // important
+    pub format: String,
+    pub key_case_sensitive: bool,
+    pub strip_key: bool,
+    /**
+     * encryption flag!
+     * 0x00 - no encryption
+     * 0x01 - encrypt record block
+     * 0x02 - encrypt key info block
+     */
+    pub encrypted: String,
+    pub register_by: String,
+    pub encoding: String,
+    pub creation_date: String,
+    pub compact: bool,
+    pub left2right: bool,
+    pub datasource_format: String,
+    pub stylesheet: String,
+    pub key_block_offset: u64,
+    pub record_block_offset: u64,
 }
