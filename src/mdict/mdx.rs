@@ -8,7 +8,7 @@ use log::{debug, info};
 use ripemd128::{Digest, Ripemd128};
 
 use crate::util::checksum::adler32_checksum;
-use crate::util::number::{read_number_from_be_bytes, NumberBytes};
+use crate::util::number::{read_number_from_be_bytes, NumberFromBeBytes};
 
 use super::header::Header;
 use super::key::KeyIndex;
@@ -78,20 +78,20 @@ impl Mdx {
             .read_exact(&mut key_block_meta_bytes)
             .with_context(|| "read key block info meta bytes error")?;
 
-        let mut meta_number_bytes = NumberBytes::new(&key_block_meta_bytes, number_width);
+        let mut meta_numbers = NumberFromBeBytes::new(&key_block_meta_bytes, number_width);
 
-        let key_blocks_num = meta_number_bytes.read_number().unwrap();
-        let _entries_num = meta_number_bytes.read_number().unwrap();
+        let key_blocks_num = meta_numbers.next().unwrap();
+        let _entries_num = meta_numbers.next().unwrap();
 
         if header.engine_version >= 2.0 {
-            let key_block_info_decompress_bytes_len = meta_number_bytes.read_number().unwrap();
+            let key_block_info_decompress_bytes_len = meta_numbers.next().unwrap();
             info!(
                 "key_block_info_decompress_bytes_size={}",
                 key_block_info_decompress_bytes_len
             );
         }
-        let key_block_info_bytes_len = meta_number_bytes.read_number().unwrap();
-        let key_blocks_bytes_num = meta_number_bytes.read_number().unwrap();
+        let key_block_info_bytes_len = meta_numbers.next().unwrap();
+        let key_blocks_bytes_num = meta_numbers.next().unwrap();
 
         // adler32 checksum of previous 5 bytes, in big endian, only version >= 2.0
         if header.engine_version >= 2.0 {

@@ -1,12 +1,14 @@
 use std::env;
 use std::path::PathBuf;
 
+use log::debug;
+
 const MDX_PATH: &str = "resources/mdx/en/牛津高阶8.mdx";
 
 pub fn mdx_path() -> anyhow::Result<PathBuf> {
     let mut path: PathBuf = env!("CARGO_MANIFEST_DIR").into();
     path.push(MDX_PATH.to_string());
-    println!("current path is {}", &path.display());
+    debug!("current path is {}", &path.display());
     Ok(path)
 }
 
