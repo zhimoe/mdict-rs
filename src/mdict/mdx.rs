@@ -1,14 +1,14 @@
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use TryInto;
 
 use anyhow::Context;
-use flate2::write::ZlibDecoder;
 use log::info;
 
 use crate::mdict::key::KeyBlockCodecInfo;
 use crate::util::checksum::adler32_checksum;
 use crate::util::number::{read_number_from_be_bytes, NumberFromBeBytes};
+use crate::util::zlib::decompress;
 
 use super::header::Header;
 use super::key::RecordIndex;
@@ -229,9 +229,11 @@ impl Mdx {
         let mut record_block_decompressed = Vec::new();
         assert_eq!(b"\x02\x00\x00\x00", record_block_type);
 
-        let mut z = ZlibDecoder::new(record_block_decompressed);
-        z.write_all(&record_block_compressed[8..]).unwrap();
-        record_block_decompressed = z.finish().unwrap();
+        decompress(
+            &record_block_compressed[8..],
+            &mut record_block_decompressed,
+        );
+
         if !adler32_checksum(
             &record_block_decompressed,
             u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
@@ -254,9 +256,11 @@ fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) ->
     match record_block_type {
         b"\x02\x00\x00\x00" => {
             _type = 2;
-            let mut z = ZlibDecoder::new(record_block_decompressed);
-            z.write_all(&record_block_bytes_compressed[8..]).unwrap();
-            record_block_decompressed = z.finish().unwrap();
+            decompress(
+                &record_block_bytes_compressed[8..],
+                &mut record_block_decompressed,
+            );
+
             if !adler32_checksum(
                 &record_block_decompressed,
                 u32::from_be_bytes(adler32_bytes.try_into().unwrap()),

@@ -1,11 +1,9 @@
-use std::io::Write;
-
-use flate2::write::ZlibDecoder;
 use log::debug;
 use ripemd128::{Digest, Ripemd128};
 
 use crate::mdict::header::Header;
 use crate::util::checksum::adler32_checksum;
+use crate::util::zlib::decompress;
 
 /// record index, 即mdx中所有词条索引
 #[derive(Debug)]
@@ -53,10 +51,11 @@ impl KeyBlockCodecInfo {
                 decrypted_compressed_bytes = Vec::from(data.clone());
             }
 
-            //data now is decrypted, then decompress
-            let mut z = ZlibDecoder::new(decompressed_key_block_info_bytes);
-            z.write_all(decrypted_compressed_bytes.as_ref()).unwrap();
-            decompressed_key_block_info_bytes = z.finish().unwrap();
+            // data now is decrypted, then decompress
+            decompress(
+                &decrypted_compressed_bytes,
+                &mut decompressed_key_block_info_bytes,
+            );
 
             if !adler32_checksum(
                 &decompressed_key_block_info_bytes,
@@ -167,14 +166,14 @@ impl RecordIndex {
             let mut key_block = Vec::new();
             match key_block_type {
                 b"\x02\x00\x00\x00" => {
-                    let mut z = ZlibDecoder::new(key_block);
-                    z.write_all(&compressed_key_block_bytes[8..]).unwrap();
-                    key_block = z.finish().unwrap();
+                    decompress(&compressed_key_block_bytes[8..], &mut key_block);
                     let mut record_index_list =
                         RecordIndex::list_from_one_key_block_bytes(&key_block);
                     whole_index_list.append(&mut record_index_list);
                 }
-                _ => {}
+                _ => {
+                    todo!()
+                }
             }
 
             i += one_codec_info.compressed_size;
