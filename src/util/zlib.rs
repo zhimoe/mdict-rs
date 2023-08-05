@@ -28,6 +28,7 @@ fn test() -> anyhow::Result<()> {
     let mut decompressed = Vec::<u8>::new();
     decompress(&compressed_bytes, &mut decompressed);
 
+    // assert
     assert_eq!("Hello World!", String::from_utf8_lossy(&decompressed));
     Ok(())
 }
