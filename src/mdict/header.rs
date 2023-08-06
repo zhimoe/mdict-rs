@@ -7,7 +7,7 @@ use crate::util::string::string_from_utf16_le;
 
 impl Header {
     /// build header info from bytes
-    pub fn new(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
+    pub fn new_from_bytes(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
         // header text in utf-16 encoding ending with '\x00\x00'
         let header = &header_bytes[..header_bytes.len() - 2];
         let header_txt = string_from_utf16_le(&header)?;

@@ -136,7 +136,7 @@ impl RecordIndex {
     pub fn list_from_bytes_and_codec_info(
         key_blocks_bytes: &Vec<u8>,
         key_blocks_codec_info: &Vec<KeyBlockCodecInfo>,
-    ) -> Vec<RecordIndex> {
+    ) -> Vec<Self> {
         let mut whole_index_list: Vec<RecordIndex> = vec![];
         let mut i: usize = 0;
         let mut end: usize = i;
