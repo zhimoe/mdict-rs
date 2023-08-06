@@ -16,25 +16,21 @@ use super::record::Record;
 
 /// Mdx file结构包含三部分
 /// header 元信息
-/// keys 词条索引信息
+/// keys 词条record在block中的索引信息
 /// records 词条释义信息
 /// 详细结构见 https://bitbucket.org/xwang/mdict-analysis/src/master/MDX.svg
 pub struct Mdx {
     pub filepath: String,
     pub header: Header,
+    // mdx file passcode
     pub passcode: String,
-    pub version: f32,
-    pub number_width: u8,
-    pub entries_num: u64,
-    pub key_blocks_num: u64,
-    pub num_record_blocks: u64,
-    pub keys: Vec<RecordIndex>,
     pub records: Vec<Record>,
 }
 
 impl Mdx {
     pub fn new(file: &str) -> anyhow::Result<Mdx> {
         let mut reader = BufReader::new(File::open(&file)?);
+
         let mut header_len_bytes = [0; 4];
         reader
             .read_exact(&mut header_len_bytes)
@@ -94,16 +90,12 @@ impl Mdx {
 
         let mut meta_numbers = NumberFromBeBytes::new(&key_block_meta_bytes, number_width);
 
-        let key_blocks_num = meta_numbers.next().unwrap();
-        let _entries_num = meta_numbers.next().unwrap();
-
+        let __key_blocks_count = meta_numbers.next();
+        let __entries_count = meta_numbers.next();
         if header.engine_version >= 2.0 {
-            let key_block_info_decompress_bytes_len = meta_numbers.next().unwrap();
-            info!(
-                "key_block_info_decompress_bytes_size={}",
-                key_block_info_decompress_bytes_len
-            );
+            let __key_block_info_decompressed_bytes_len = meta_numbers.next();
         }
+
         let key_block_info_bytes_len = meta_numbers.next().unwrap();
         let key_blocks_bytes_num = meta_numbers.next().unwrap();
 
@@ -135,7 +127,7 @@ impl Mdx {
 
         // parse record block
         let record_blocks_num = read_number_from_be_bytes(&mut reader, number_width);
-        let entries_num_ = read_number_from_be_bytes(&mut reader, number_width);
+        let __entries_num = read_number_from_be_bytes(&mut reader, number_width);
         let record_block_codec_list_bytes_size =
             read_number_from_be_bytes(&mut reader, number_width);
         let _record_block_list_bytes_size = read_number_from_be_bytes(&mut reader, number_width);
@@ -153,7 +145,6 @@ impl Mdx {
 
         // start read record block, decompress it
         let mut record_list: Vec<Record> = vec![]; // important!
-        let mut _record_list_bytes_counter = 0;
         let mut i: usize = 0;
         let mut offset: usize = 0;
 
@@ -161,36 +152,32 @@ impl Mdx {
             let cur_pos = reader
                 .seek(SeekFrom::Current(0))
                 .with_context(|| "get current file position error")?;
+
             let mut record_block_bytes_compressed: Vec<u8> = vec![0; c_size];
             reader
                 .read_exact(&mut record_block_bytes_compressed)
                 .with_context(|| "read exact error")?;
 
-            let (_record_block_decompressed, block_type) =
-                decompress_record_block_bytes(&mut record_block_bytes_compressed);
-
             // split record block into record according to the offset info from key block
             while i < key_id_text_list.len() {
                 let key_index = &key_id_text_list[i];
-                let start = key_index.index as usize;
+                let start = key_index.start as usize;
                 if start - offset >= d_size {
                     break;
                 }
                 let record_end: usize;
                 if i < key_id_text_list.len() - 1 {
-                    record_end = key_id_text_list[i + 1].index as usize;
+                    record_end = key_id_text_list[i + 1].start as usize;
                 } else {
                     record_end = d_size + offset;
                 }
                 let idx = Record {
                     record_text: key_index.text.to_string(),
-                    file_pos: cur_pos as u32,
-                    compressed_size: c_size as u32,
-                    decompressed_size: d_size as u32,
-                    record_block_type: block_type as u32,
-                    record_start: key_index.index.clone() as u32,
+                    block_file_pos: cur_pos as u32,
+                    block_bytes_size: c_size as u32,
+                    record_start: key_index.start.clone() as u32,
                     record_end: record_end as u32,
-                    offset: offset as u32,
+                    decompressed_offset: offset as u32,
                 };
                 i += 1;
 
@@ -199,55 +186,41 @@ impl Mdx {
                 record_list.push(idx)
             }
             offset += d_size;
-            _record_list_bytes_counter += c_size;
         }
 
-        let version = header.engine_version.clone();
         Ok(Mdx {
             filepath: file.to_string(),
             header,
             passcode: "".to_string(),
-            version,
-            number_width,
-            entries_num: entries_num_ as u64,
-            key_blocks_num,
-            num_record_blocks: 122,
-            keys: key_id_text_list,
             records: record_list,
         })
     }
 
     /// util function, extract word definitions from bytes
-    pub fn extract_definition(
-        record_block_compressed: &mut Vec<u8>,
-        record_start: usize,
-        record_end: usize,
-        offset: usize,
-    ) -> String {
-        let record_block_type = &record_block_compressed[0..4];
-        let adler32_bytes = &record_block_compressed[4..8];
-        let mut record_block_decompressed = Vec::new();
+    pub fn extract_definition(block_bytes: &Vec<u8>, record: &Record) -> String {
+        let record_block_type = &block_bytes[0..4];
         assert_eq!(b"\x02\x00\x00\x00", record_block_type);
 
-        decompress(
-            &record_block_compressed[8..],
-            &mut record_block_decompressed,
-        );
+        let mut block_decompressed = Vec::new();
+        decompress(&block_bytes[8..], &mut block_decompressed);
 
+        let adler32_bytes = &block_bytes[4..8];
         if !adler32_checksum(
-            &record_block_decompressed,
+            &block_decompressed,
             u32::from_be_bytes(adler32_bytes.try_into().unwrap()),
         ) {
             panic!("record block adler32 checksum failed");
         }
-        let s = record_start - offset;
-        let e = record_end - offset;
-        let record = &record_block_decompressed[s..e];
-        let def = String::from_utf8_lossy(record);
-        def.to_string()
+
+        let s: usize = (record.record_start - record.decompressed_offset) as usize;
+        let e: usize = (record.record_end - record.decompressed_offset) as usize;
+        let record = &block_decompressed[s..e];
+
+        return String::from_utf8_lossy(record).to_string();
     }
 }
 
+/*
 fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) -> (Vec<u8>, i32) {
     let record_block_type = &record_block_bytes_compressed[0..4];
     let adler32_bytes = &record_block_bytes_compressed[4..8];
@@ -278,3 +251,4 @@ fn decompress_record_block_bytes(record_block_bytes_compressed: &mut Vec<u8>) ->
     }
     (record_block_decompressed, _type)
 }
+ */

@@ -8,9 +8,9 @@ use crate::util::zlib::decompress;
 /// record index, 即mdx中所有词条索引
 #[derive(Debug)]
 pub struct RecordIndex {
-    // start position of record
-    pub index: u64,
-    // text of record
+    // start position in record block of the record
+    pub start: u64,
+    // text of the record
     pub text: String,
 }
 
@@ -131,21 +131,6 @@ impl KeyBlockCodecInfo {
     }
 }
 
-/// key block 信息，包含三段
-/// meta： 元信息 5x8 或者 4x4 字节
-/// key block info: 每个key block item压缩后和解压后的bytes size
-/// key block item: 即KeyIndex部分
-#[derive(Debug)]
-pub struct KeyBlock {
-    pub key_block_item_count: u64,
-    pub entries_count: u64,
-    // only when version >= 2.0
-    pub key_block_info_bytes_decompressed_size: u64,
-    pub key_block_info_bytes_size: u64,
-    pub key_block_item_codec_size_list: Vec<KeyBlockCodecInfo>,
-    pub key_block_item_list: Vec<RecordIndex>,
-}
-
 impl RecordIndex {
     /// 将整个key blocks bytes 解析成一个 Vec<RecordIndex>
     pub fn list_from_bytes_and_codec_info(
@@ -172,7 +157,7 @@ impl RecordIndex {
                     whole_index_list.append(&mut record_index_list);
                 }
                 _ => {
-                    todo!()
+                    todo!("")
                 }
             }
 
@@ -206,7 +191,7 @@ impl RecordIndex {
                 .to_string();
             key_start = key_end + delimiter_width;
 
-            record_index_list.push(RecordIndex { index, text });
+            record_index_list.push(RecordIndex { start: index, text });
         }
         return record_index_list;
     }
