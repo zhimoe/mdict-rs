@@ -1,92 +1,77 @@
 use std::collections::HashMap;
 
-use log::info;
+use adler32::adler32;
+use encoding::{all::UTF_16LE, Encoding};
+use nom::{IResult, Slice};
+use nom::multi::length_data;
+use nom::number::complete::{be_u32, le_u32};
+use nom::sequence::tuple;
 use regex::Regex;
 
-use crate::util::string::string_from_utf16_le;
-
-impl Header {
-    /// build header info from bytes
-    pub fn new_from_bytes(header_bytes: Vec<u8>) -> anyhow::Result<Self> {
-        // header text in utf-16 encoding ending with '\x00\x00'
-        let header = &header_bytes[..header_bytes.len() - 2];
-        let header_txt = string_from_utf16_le(&header)?;
-        info!("header_text {}", &header_txt);
-
-        let mut _header_map: HashMap<String, String> = HashMap::new();
-        let re = Regex::new(r#"(\w+)="(.*?)""#).unwrap();
-        for cap in re.captures_iter(header_txt.as_str()) {
-            let key = cap[1].to_string();
-            let value = cap[2].to_string();
-            _header_map.insert(key, value);
-        }
-        info!("header_map {:?}", &_header_map);
-        Ok(Header {
-            engine_version: _header_map
-                .get("GeneratedByEngineVersion")
-                .unwrap()
-                .parse::<f32>()
-                .unwrap(),
-            format: _header_map["Format"].clone(),
-            key_case_sensitive: _header_map["KeyCaseSensitive"] == "Yes",
-            strip_key: _header_map["StripKey"] == "Yes",
-            encrypted: _header_map["Encrypted"].clone(),
-            register_by: _header_map["RegisterBy"].clone(),
-            encoding: _header_map["Encoding"].clone(),
-            creation_date: _header_map["CreationDate"].clone(),
-            compact: _header_map["Compact"] == "Yes",
-            left2right: _header_map["Left2Right"] == "Yes",
-            datasource_format: _header_map["DataSourceFormat"].clone(),
-            stylesheet: _header_map["StyleSheet"].clone(),
-            key_block_offset: 0,
-            record_block_offset: 0,
-        })
-    }
-
-    /// the number width determined by MDX file engine version
-    pub fn number_width(&self) -> u8 {
-        if self.engine_version >= 2.0 {
-            8
-        } else {
-            4
-        }
-    }
-
-    /// the key_block_meta_bytes_len determined by MDX file engine version
-    pub fn key_block_meta_bytes_size(&self) -> u8 {
-        if self.engine_version >= 2.0 {
-            self.number_width() * 5
-        } else {
-            self.number_width() * 4
-        }
-    }
+#[derive(Debug)]
+pub enum Version {
+    V1,
+    V2,
 }
 
-/// Header raw分为三段:
-/// bytes len of dict info(4 bytes int),
-/// dict info(bytes): 即下面的Header
-/// adler32 checksum(4 bytes int)
-#[derive(Debug, Default)]
+/// mdx头部信息
+#[derive(Debug)]
 pub struct Header {
-    pub engine_version: f32,
-    // important
-    pub format: String,
-    pub key_case_sensitive: bool,
-    pub strip_key: bool,
+    pub version: Version,
     /**
-     * encryption flag!
-     * 0x00 - no encryption
-     * 0x01 - encrypt record block
-     * 0x02 - encrypt key info block
+     * encryption flag
+     * "0" - no encryption
+     * "1" - encrypt record block
+     * "2" - encrypt key info block
      */
+    // 牛津 "0" 朗文 "2"
     pub encrypted: String,
-    pub register_by: String,
+    // record bytes encoding "UTF-8"
     pub encoding: String,
-    pub creation_date: String,
-    pub compact: bool,
-    pub left2right: bool,
-    pub datasource_format: String,
-    pub stylesheet: String,
-    pub key_block_offset: u64,
-    pub record_block_offset: u64,
+}
+
+pub fn parse_header(data: &[u8]) -> IResult<&[u8], Header> {
+    // length_data(be_u32) 先读取一个be_u32 number,然后根据number读取对应长度bytes
+    let (data, (header_buf, checksum)) = tuple((length_data(be_u32), le_u32))(data)?;
+    // &[8] 实现Read接口
+    assert_eq!(adler32(header_buf).unwrap(), checksum);
+    // string from utf_16le encoding
+    let info = UTF_16LE
+        .decode(header_buf, encoding::DecoderTrap::Strict)
+        .unwrap();
+
+    let re = Regex::new(r#"(\w+)="((.|\r\n|[\r\n])*?)""#).unwrap();
+    let mut attrs = HashMap::new();
+    for cap in re.captures_iter(info.as_str()) {
+        attrs.insert(cap[1].to_string(), cap[2].to_string());
+    }
+
+    let version = attrs
+        .get("GeneratedByEngineVersion")
+        .unwrap()
+        .trim()
+        .slice(0..1)
+        .parse::<u8>()
+        .unwrap();
+
+    let version = match version {
+        1 => Version::V1,
+        2 => Version::V2,
+        _ => panic!("unsupported mdx engine version!, {}", &version),
+    };
+
+    // "0" "2" "3"
+    let encrypted = attrs.get("Encrypted").unwrap().to_string();
+
+    // "UTF-8"
+    let encoding = attrs.get("Encoding").unwrap().to_string();
+
+    Ok((
+        data,
+        Header {
+            version,
+            encrypted,
+            encoding,
+        },
+    ))
 }
