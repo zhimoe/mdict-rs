@@ -55,18 +55,18 @@ mod util;
 
 fn main() {
     let data = include_bytes!("/Users/zhimoe/code/rs/mdict-rs/resources/mdx/en/朗文当代4.mdx");
-    // let data = include_bytes!("/Users/zhimoe/code/rs/mdict-rs/resources/mdx/en/牛津高阶8.mdx");
 
     let dict = Mdx::new(data);
     // iter dictionary entries
-    for key in dict.keys() {
+    for key in dict.items() {
         println!("{:?}", key);
     }
-
-    // iter all dictionary records
-    // for item in dict.items() {
-    //     println!("{:?}", item);
-    // }
+    let data = include_bytes!("/Users/zhimoe/code/rs/mdict-rs/resources/mdx/en/牛津高阶8.mdx");
+    let dict = Mdx::new(data);
+    // iter dictionary entries
+    for key in dict.items() {
+        println!("{:?}", key);
+    }
 }
 
 
@@ -76,13 +76,13 @@ fn test() -> anyhow::Result<()> {
 
     let dict = Mdx::new(data);
     // iter dictionary entries
-    for key in dict.keys() {
+    for key in dict.items() {
         println!("{:?}", key);
     }
     let data = include_bytes!("/Users/zhimoe/code/rs/mdict-rs/resources/mdx/en/牛津高阶8.mdx");
     let dict = Mdx::new(data);
     // iter dictionary entries
-    for key in dict.keys() {
+    for key in dict.items() {
         println!("{:?}", key);
     }
 

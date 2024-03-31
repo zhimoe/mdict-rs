@@ -33,6 +33,7 @@ pub struct KeyBlockHeader {
 }
 
 /// every key block compressed size and decompressed size
+/// 用于解析出 RecordEntry list
 #[derive(Debug)]
 pub struct KeyBlockSize {
     pub csize: usize,
@@ -42,8 +43,8 @@ pub struct KeyBlockSize {
 /// 词典索引信息
 /// buf_decompressed_offset: 整个record block buf解压后该entry的字节位置
 #[derive(Debug)]
-pub struct KeyEntry {
-    // 整个record block buf解压后entry的位置
+pub struct RecordEntry {
+    // 整个buf解压后record的位置
     pub buf_decompressed_offset: usize,
     pub text: String,
 }
@@ -62,12 +63,12 @@ pub fn parse_key_block_header<'a>(
         // map 接收一个parser和一个匿名fn, 将parser的结果传递给fn后得到返回值
         let (_, kbh) = map(
             tuple((be_u32, be_u32, be_u32, be_u32)),
-            |(block_num, entry_num, key_block_info_len, key_blocks_len)| KeyBlockHeader {
+            |(block_num, entry_num, info_len, blocks_len)| KeyBlockHeader {
                 block_num: block_num as usize,
                 entry_num: entry_num as usize,
-                key_block_info_decompressed_len: key_block_info_len as usize, // 没有压缩则相等
-                key_block_info_len: key_block_info_len as usize,
-                key_blocks_len: key_blocks_len as usize,
+                key_block_info_decompressed_len: info_len as usize, // 没有压缩则相等
+                key_block_info_len: info_len as usize,
+                key_blocks_len: blocks_len as usize,
             },
         )(info_buf)?;
         Ok((data, kbh))
@@ -203,16 +204,16 @@ pub fn parse_key_block_info<'a>(
 /// 解析 key blocks
 pub fn parse_key_blocks<'a>(
     data: &'a [u8],
-    len: usize,
+    key_blocks_len: usize,
     header: &Header,
-    blocks_size: &'a Vec<KeyBlockSize>,
-) -> IResult<&'a [u8], Vec<KeyEntry>> {
-    let (data, buf) = take(len)(data)?;
+    key_blocks_size: &'a Vec<KeyBlockSize>,
+) -> IResult<&'a [u8], Vec<RecordEntry>> {
+    let (data, buf) = take(key_blocks_len)(data)?;
     let mut buf = buf;
 
-    let mut key_entries: Vec<KeyEntry> = vec![];
+    let mut key_entries: Vec<RecordEntry> = vec![];
 
-    for info in blocks_size.iter() {
+    for info in key_blocks_size.iter() {
         let (remain, decompressed) = key_block_parser(info.csize, info.dsize)(buf)?;
         let (_, mut one_block_entries) = match &header.version {
             Version::V1 => parse_block_items_v1(&decompressed[..], &header.encoding).unwrap(),
@@ -227,13 +228,13 @@ pub fn parse_key_blocks<'a>(
 }
 
 // TODO 可以合并
-fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<KeyEntry>> {
+fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordEntry>> {
     let (remain, entries) = many0(map(
         tuple((be_u32, take_till(|x| x == 0), take(1_usize))),
         |(offset, buf, _)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            KeyEntry {
+            RecordEntry {
                 buf_decompressed_offset: offset as usize,
                 text,
             }
@@ -245,13 +246,13 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
     Ok((remain, entries))
 }
 
-fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<KeyEntry>> {
+fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordEntry>> {
     let (remain, sep) = many0(map(
         tuple((be_u64, take_till(|x| x == 0), take(1_usize))),
         |(offset, buf, _)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            KeyEntry {
+            RecordEntry {
                 buf_decompressed_offset: offset as usize,
                 text,
             }

@@ -1,23 +1,39 @@
+use encoding::label::encoding_from_whatwg_label;
+use nom::bytes::complete::take_till;
+use nom::IResult;
+
 use crate::mdict::header::parse_header;
-use crate::mdict::keyblock::{KeyEntry, parse_key_block_header, parse_key_block_info, parse_key_blocks};
-use crate::mdict::recordblock::{parse_record_blocks, RecordBlockSize};
+use crate::mdict::keyblock::{parse_key_block_header, parse_key_block_info, parse_key_blocks, RecordEntry};
+use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
 
 /// 一个record的定位信息：在buf中的offset和在block解压后的offset
+//            block_offset_of_record
+//                  │
+//                  ▼
+//              ┌───┬────────────┬───────┐
+//    one block │   │   record   │       │
+//              └───┼────────────┼───────┘
+//              ▲   └────────────┘
+//              │    record_csize
+//              │
+//     buf_offset_of_block
+//
 #[derive(Debug)]
-struct RecordOffset {
-    // sum of all previous record blocks size
-    buf_offset: usize,
+struct RecordPosition {
+    // buf offset of target block
+    buf_offset_of_block: usize,
     // 计算方法：KeyEntry.buf_decompressed_offset - sum of all previous record blocks decompressed_size
     block_decompressed_offset: usize,
-    // record bytes len
-    compressed_len: usize,
-    // record decompressed len
-    decompressed_len: usize,
+    // record compressed bytes size
+    block_csize: usize,
+    // record decompressed bytes size
+    block_dsize: usize,
 }
 
+// todo: why can not be String?
 #[derive(Debug)]
-pub struct Record {
-    key: String,
+pub struct Record<'a> {
+    text: &'a str,
     definition: String,
 }
 
@@ -32,9 +48,9 @@ pub struct Record {
 /// record block bytes:   for (c_size, d_size) in record_block_cd_size_list
 #[derive(Debug)]
 pub struct Mdx {
-    pub key_entries: Vec<KeyEntry>,
+    pub record_entries: Vec<RecordEntry>,
     pub record_blocks_size: Vec<RecordBlockSize>,
-    pub records_buf: Vec<u8>,
+    pub record_block_buf: Vec<u8>,
     pub encoding: String,
     pub encrypted: String,
 }
@@ -44,40 +60,78 @@ impl Mdx {
     /// let data = include_bytes!("/file.mdx");
     /// let mdx = Mdx::new(&data);
     pub fn new(data: &[u8]) -> Mdx {
-        // parse header
         let (data, header) = parse_header(data).unwrap();
-        // parse key block
-        let (data, key_block_header) = parse_key_block_header(data, &header).unwrap();
-        let (data, key_blocks_size) = parse_key_block_info(data, key_block_header.key_block_info_len, &header).unwrap();
-        let (data, key_entries) = parse_key_blocks(
-            data,
-            key_block_header.key_blocks_len,
-            &header,
-            &key_blocks_size,
-        ).unwrap();
+
+        let (data, kbh) = parse_key_block_header(data, &header).unwrap();
+        let (data, key_blocks_size) = parse_key_block_info(data, kbh.key_block_info_len, &header).unwrap();
+        let (data, record_entries) = parse_key_blocks(data, kbh.key_blocks_len, &header, &key_blocks_size).unwrap();
         let (data, record_blocks_size) = parse_record_blocks(data, &header).unwrap();
         Mdx {
-            key_entries,
+            record_entries,
             record_blocks_size,
-            records_buf: Vec::from(data),
+            record_block_buf: Vec::from(data),
             encoding: header.encoding,
             encrypted: header.encrypted,
 
         }
     }
 
-    // pub fn items(&self) -> impl Iterator<Item=Record> {
-    //     self.key_entries.iter().map(|entry| {
-    //         let def = self.find_definition(entry);
-    //         Record {
-    //             key: &entry.text,
-    //             definition: def,
-    //         }
-    //     })
-    // }
+    pub fn keys(&self) -> impl Iterator<Item=&RecordEntry> {
+        return self.record_entries.iter();
+    }
 
-    pub fn keys(&self) -> impl Iterator<Item=&KeyEntry> {
-        return self.key_entries.iter();
+
+    pub fn items(&self) -> impl Iterator<Item=Record> {
+        self.record_entries.iter().map(|entry| {
+            let def = self.find_definition(entry);
+            Record {
+                text: &entry.text,
+                definition: def,
+            }
+        })
+    }
+
+    /// 先看find_definition和record_offset方法理解文件结构
+    fn find_definition(&self, entry: &RecordEntry) -> String {
+        if let Some(position) = self.record_offset(entry) {
+            let buf = &self.record_block_buf[position.buf_offset_of_block..];
+            let (_, decompressed) = record_block_parser(position.block_csize, position.block_dsize)(buf).unwrap();
+            //todo: why can not direct unwrap?
+            let result: IResult<&[u8], &[u8]> =
+                take_till(|x| x == 0)(&decompressed[position.block_decompressed_offset..]);
+            let (_, record_decompressed) = result.unwrap();
+            let decoder = encoding_from_whatwg_label(self.encoding.as_str()).unwrap();
+            let text = decoder.decode(record_decompressed, encoding::DecoderTrap::Strict).unwrap();
+            text
+        } else {
+            println!("find definition failed {:?}", entry.text);
+            "".to_string()
+        }
+    }
+
+    /// bytes structure: buf -> block -> record
+    /// find record offset of input entry:
+    /// 已知的是entry 在buf decompressed后的位置和每个block压缩和解压的长度
+    /// 依次遍历blocks的size信息每个block的decompressed_size加起来如果小于entry.buf_decompressed_offset
+    /// 说明目标entry所在的block还没遍历到
+    fn record_offset(&self, record: &RecordEntry) -> Option<RecordPosition> {
+        let mut pre_blocks_dsize_sum = 0;
+        let mut pre_buf_csize_sum = 0;
+        for block in &self.record_blocks_size {
+            if record.buf_decompressed_offset <= pre_blocks_dsize_sum + block.dsize {
+                // return Some((item_offset, block_offset, i));
+                return Some(RecordPosition {
+                    buf_offset_of_block: pre_buf_csize_sum,
+                    block_decompressed_offset: record.buf_decompressed_offset - pre_blocks_dsize_sum,
+                    block_csize: block.csize,
+                    block_dsize: block.dsize,
+                });
+            } else {
+                pre_blocks_dsize_sum += block.dsize;
+                pre_buf_csize_sum += block.csize;
+            }
+        }
+        None
     }
 }
 
