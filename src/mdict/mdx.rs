@@ -7,16 +7,20 @@ use crate::mdict::keyblock::{parse_key_block_header, parse_key_block_info, parse
 use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
 
 /// 一个record的定位信息：在buf中的offset和在block解压后的offset
-//            block_offset_of_record
-//                  │
-//                  ▼
-//              ┌───┬────────────┬───────┐
-//    one block │   │   record   │       │
-//              └───┼────────────┼───────┘
-//              ▲   └────────────┘
-//              │    record_csize
-//              │
-//     buf_offset_of_block
+/// draw with: https://asciiflow.com/#/
+//                   ◄──block_csize───►
+//                   ┌────────────────┐
+//            block  │                │
+//                   └────────────────┘
+//                   ▲
+//                buf_offset
+//
+//                   ◄──── block_dsize ───────►
+//                   ┌───┬────────────┬───────┐
+//     block_decomp  │   │   record   │       │
+//                   └───┴────────────┴───────┘
+//                       ▲
+//                 block_decompressed_offset
 //
 #[derive(Debug)]
 struct RecordPosition {
