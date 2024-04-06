@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use log::debug;
 
-const MDX_PATH: &str = "resources/mdx/en/牛津高阶8.mdx";
+const MDX_PATH: &str = "resources/mdx/en/朗文当代4.mdx";
 
 pub fn mdx_path() -> anyhow::Result<PathBuf> {
     let mut path: PathBuf = env!("CARGO_MANIFEST_DIR").into();

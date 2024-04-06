@@ -1,5 +1,5 @@
-use nom::IResult;
 use nom::number::complete::{be_u16, be_u8};
+use nom::IResult;
 
 // 解压缩这个地方优化一下
 pub fn fast_decrypt(encrypted: &[u8], key: &[u8]) -> Vec<u8> {
@@ -13,7 +13,6 @@ pub fn fast_decrypt(encrypted: &[u8], key: &[u8]) -> Vec<u8> {
     }
     buf
 }
-
 
 /// nom parser
 pub fn text_len_parser_v2(input: &[u8]) -> IResult<&[u8], u16> {
