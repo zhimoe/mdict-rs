@@ -1,6 +1,7 @@
+use std::io::prelude::*;
 use std::io::Read;
 
-use compress::zlib;
+use flate2::read::ZlibDecoder;
 use nom::bytes::complete::take;
 use nom::combinator::map;
 use nom::IResult;
@@ -95,7 +96,7 @@ pub(crate) fn record_block_parser<'a>(
                 }
                 2 => {
                     let mut v = vec![];
-                    zlib::Decoder::new(&data[..]).read_to_end(&mut v).unwrap();
+                    ZlibDecoder::new(&data[..]).read_to_end(&mut v).unwrap();
                     v
                 }
                 _ => panic!("unknown compression method: {}", comp_method),

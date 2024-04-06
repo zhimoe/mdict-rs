@@ -1,8 +1,8 @@
 use std::{io::Read, str};
 
 use adler32::adler32;
-use compress::zlib;
 use encoding::{Encoding, label::encoding_from_whatwg_label};
+use flate2::read::ZlibDecoder;
 use nom::{
     bytes::complete::{take, take_till},
     combinator::map,
@@ -126,7 +126,7 @@ pub fn parse_key_block_info<'a>(
         let mut key_block_info = vec![];
 
         if encrypted == "0" {
-            zlib::Decoder::new(&block_info[8..])
+            ZlibDecoder::new(&block_info[8..])
                 .read_to_end(&mut key_block_info)
                 .unwrap();
         }
@@ -142,7 +142,7 @@ pub fn parse_key_block_info<'a>(
             let mut d = Vec::from(&block_info[0..8]);
             let decrypted = fast_decrypt(&block_info[8..], key.as_slice());
             d.extend(decrypted);
-            zlib::Decoder::new(&d[8..])
+            ZlibDecoder::new(&d[8..])
                 .read_to_end(&mut key_block_info)
                 .unwrap();
         }
@@ -295,7 +295,7 @@ fn key_block_parser<'a>(
                 }
                 2 => {
                     let mut v = vec![];
-                    zlib::Decoder::new(&data[..]).read_to_end(&mut v).unwrap();
+                    ZlibDecoder::new(&data[..]).read_to_end(&mut v).unwrap();
                     v
                 }
                 _ => panic!("unknown compression method: {}", comp_method),
