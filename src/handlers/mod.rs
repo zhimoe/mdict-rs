@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{HttpResponse, Result, web};
 use serde_derive::Deserialize;
 
 use crate::lucky;

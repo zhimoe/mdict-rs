@@ -29,13 +29,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db_file = format!("{}{}", "/Users/zhimoe/code/rs/mdict-rs/resources/mdx/en/朗文当代4.mdx", ".db");
 
     if PathBuf::from(&db_file).exists() {
-        std::fs::remove_file(&db_file).expect("remove old db file error");
-        println!("old db file:{} removed", &db_file);
+        // std::fs::remove_file(&db_file).expect("remove old db file error");
+        // println!("old db file:{} removed", &db_file);
+    } else {
+        let mut conn = Connection::open(&db_file).unwrap();
+        mdx_to_sqlite(&mut conn, &mdx)?;
+        println!("mdx indexing done");
     }
 
-    let mut conn = Connection::open(&db_file).unwrap();
-    mdx_to_sqlite(&mut conn, &mdx)?;
-    println!("mdx indexing done");
 
     println!("app serve on http://127.0.0.1:8080");
     HttpServer::new(|| {
@@ -54,6 +55,7 @@ fn app_config(config: &mut web::ServiceConfig) {
         web::scope("")
             .service(web::resource("/query").route(web::post().to(handle_query)))
             .service(web::resource("/lucky").route(web::get().to(handle_lucky)))
+            // .wrap(middleware::DefaultHeaders::new().add(("Cache-Control", "max-age=86400")))
             .service(
                 actix_files::Files::new("/", static_path().unwrap().to_str().unwrap())
                     .index_file("index.html"),
