@@ -27,12 +27,11 @@ pub fn parse_record_blocks<'a>(
     match &header.version {
         Version::V1 => parse_record_blocks_v1(data),
         Version::V2 => parse_record_blocks_v2(data),
-        _ => panic!("unsupported version"),
     }
 }
 
 fn parse_record_blocks_v1(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
-    let (data, (records_num, entries_num, record_info_len, record_buf_len)) =
+    let (data, (records_num, _entries_num, record_info_len, _record_buf_len)) =
         tuple((be_u32, be_u32, be_u32, be_u32))(data)?;
 
     assert_eq!(records_num * 8, record_info_len);
@@ -47,7 +46,7 @@ fn parse_record_blocks_v1(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
 }
 
 fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
-    let (data, (records_num, entries_num, record_info_len, record_buf_len)) =
+    let (data, (records_num, _entries_num, record_info_len, _record_buf_len)) =
         tuple((be_u64, be_u64, be_u64, be_u64))(data)?;
 
     assert_eq!(records_num * 16, record_info_len,);
@@ -61,6 +60,7 @@ fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
     )(data)
 }
 
+// todo: pub vs pub(crate) diff
 pub(crate) fn record_block_parser<'a>(
     size: usize,
     dsize: usize,

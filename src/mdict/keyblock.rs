@@ -1,7 +1,4 @@
-use std::{
-    io::Read,
-    str,
-};
+use std::{io::Read, str};
 
 use adler32::adler32;
 use compress::zlib;
@@ -40,13 +37,12 @@ pub struct KeyBlockSize {
     pub dsize: usize,
 }
 
-/// 词典索引信息
-/// buf_decompressed_offset: 整个record block buf解压后该entry的字节位置
+/// 词典索引信息, 和实体词典的索引一样，一个text以及一个页码，不过这个页码是整个buf解压后的偏移量
 #[derive(Debug)]
-pub struct RecordEntry {
-    // 整个buf解压后record的位置
-    pub buf_decompressed_offset: usize,
+pub struct Entry {
     pub text: String,
+    // 整个buf解压缩后entry的偏移量
+    pub buf_decompressed_offset: usize,
 }
 
 pub fn parse_key_block_header<'a>(
@@ -111,7 +107,6 @@ pub fn parse_key_block_info<'a>(
     return match &header.version {
         Version::V1 => v1(data, block_info_len),
         Version::V2 => v2(data, block_info_len, &header.encrypted),
-        _ => panic!("unsupported engine version!"),
     };
 
     fn v1<'a>(data: &'a [u8], block_info_len: usize) -> IResult<&'a [u8], Vec<KeyBlockSize>> {
@@ -200,18 +195,17 @@ pub fn parse_key_block_info<'a>(
     }
 }
 
-
 /// 解析 key blocks
 pub fn parse_key_blocks<'a>(
     data: &'a [u8],
     key_blocks_len: usize,
     header: &Header,
     key_blocks_size: &'a Vec<KeyBlockSize>,
-) -> IResult<&'a [u8], Vec<RecordEntry>> {
+) -> IResult<&'a [u8], Vec<Entry>> {
     let (data, buf) = take(key_blocks_len)(data)?;
     let mut buf = buf;
 
-    let mut key_entries: Vec<RecordEntry> = vec![];
+    let mut key_entries: Vec<Entry> = vec![];
 
     for info in key_blocks_size.iter() {
         let (remain, decompressed) = key_block_parser(info.csize, info.dsize)(buf)?;
@@ -228,13 +222,13 @@ pub fn parse_key_blocks<'a>(
 }
 
 // TODO 可以合并
-fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordEntry>> {
+fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<Entry>> {
     let (remain, entries) = many0(map(
         tuple((be_u32, take_till(|x| x == 0), take(1_usize))),
         |(offset, buf, _)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            RecordEntry {
+            Entry {
                 buf_decompressed_offset: offset as usize,
                 text,
             }
@@ -246,13 +240,13 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
     Ok((remain, entries))
 }
 
-fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordEntry>> {
+fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<Entry>> {
     let (remain, sep) = many0(map(
         tuple((be_u64, take_till(|x| x == 0), take(1_usize))),
         |(offset, buf, _)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            RecordEntry {
+            Entry {
                 buf_decompressed_offset: offset as usize,
                 text,
             }
@@ -284,7 +278,7 @@ fn key_block_parser<'a>(
                 0 => Vec::from(encrypted),
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
-                    let mut decrypt = vec![];
+                    let decrypt = vec![];
                     let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
                     decrypt
                 }
