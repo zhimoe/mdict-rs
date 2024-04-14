@@ -1,7 +1,7 @@
 # mdict-rs
 
 a simple web dictionary write in rust, base on mdx format dictionary file.
-it's at an early stage of development, now only support mdx version 2.0 with encrypted=2 or 0》
+it's at an early stage of development, now only support mdx version 2.0 with encrypted=2 or 0
 
 ## usage
 
