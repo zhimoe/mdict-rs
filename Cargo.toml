@@ -10,7 +10,6 @@ name = "demo"
 path = "src/bin/demo.rs"
 
 [dependencies]
-lazy_static = "*"
 # error handling
 anyhow = "1"
 thiserror = "1"
