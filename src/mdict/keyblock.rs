@@ -1,18 +1,17 @@
 use std::{io::Read, str};
 
 use adler32::adler32;
-use encoding::{Encoding, label::encoding_from_whatwg_label};
+use encoding::label::encoding_from_whatwg_label;
 use flate2::read::ZlibDecoder;
 use nom::{
     bytes::complete::{take, take_till},
     combinator::map,
-    IResult,
     multi::{length_data, many0},
     number::complete::{be_u32, be_u64, le_u32},
-    sequence::tuple, Slice,
+    sequence::tuple,
+    IResult, Slice,
 };
 use ripemd::{Digest, Ripemd128};
-use salsa20::{cipher::KeyIvInit, Salsa20};
 
 use crate::mdict::header::{Header, Version};
 use crate::util::fast_decrypt;
@@ -42,7 +41,7 @@ pub struct KeyBlockSize {
 pub struct Entry {
     pub text: String,
     // 整个buf解压缩后entry的偏移量
-    pub buf_decompressed_offset: usize,
+    pub record_start_in_de_buf: usize,
 }
 
 pub fn parse_key_block_header<'a>(
@@ -81,12 +80,12 @@ pub fn parse_key_block_header<'a>(
         let (_, kbh) = map(
             tuple((be_u64, be_u64, be_u64, be_u64, be_u64)),
             |(
-                 block_num,
-                 entry_num,
-                 key_block_info_decompressed_len,
-                 key_block_info_len,
-                 key_blocks_len,
-             )| KeyBlockHeader {
+                block_num,
+                entry_num,
+                key_block_info_decompressed_len,
+                key_block_info_len,
+                key_blocks_len,
+            )| KeyBlockHeader {
                 block_num: block_num as usize,
                 entry_num: entry_num as usize,
                 key_block_info_decompressed_len: key_block_info_decompressed_len as usize,
@@ -229,7 +228,7 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
             Entry {
-                buf_decompressed_offset: offset as usize,
+                record_start_in_de_buf: offset as usize,
                 text,
             }
         },
@@ -247,7 +246,7 @@ fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
             Entry {
-                buf_decompressed_offset: offset as usize,
+                record_start_in_de_buf: offset as usize,
                 text,
             }
         },
@@ -279,7 +278,6 @@ fn key_block_parser<'a>(
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
                     let decrypt = vec![];
-                    let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
                     decrypt
                 }
                 _ => panic!("unknown enc method: {}", enc_method),

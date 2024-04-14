@@ -1,7 +1,3 @@
-use encoding::label::encoding_from_whatwg_label;
-use nom::bytes::complete::take_till;
-use nom::IResult;
-
 use crate::mdict::header::parse_header;
 use crate::mdict::keyblock::{
     Entry, parse_key_block_header, parse_key_block_info, parse_key_blocks,
@@ -25,14 +21,16 @@ use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, Record
 //                 block_decompressed_offset
 //
 #[derive(Debug)]
-struct RecordOffset {
-    text: String,
-    // record所在block在buf的offset
-    offset_of_block: usize,
-    // record在解压后的block的offset
-    decompressed_offset_of_record: usize,
+pub struct RecordOffset {
+    pub(crate) text: String,
+    // record所在block在buf的offset 截取block使用
+    block_start_in_buf: usize,
+    // 解析block使用
     block_csize: usize,
     block_dsize: usize,
+    // record在解压后的block的offset
+    record_start_in_de_block: usize,
+    record_end_in_de_block: usize,
 }
 
 // todo: why can not be String?
@@ -85,6 +83,7 @@ impl Mdx {
         }
     }
 
+    #[allow(unused)]
     pub fn entries(&self) -> impl Iterator<Item=&RecordOffset> {
         return self.records_offset.iter();
     }
@@ -99,19 +98,19 @@ impl Mdx {
         })
     }
 
-
     fn find_definition(&self, rs: &RecordOffset) -> String {
-        let buf = &self.record_block_buf[rs.offset_of_block..];
-        let (_, decompressed) = record_block_parser(rs.block_csize, rs.block_dsize)(buf).unwrap();
+        // block bytes with tail
+        let block_buf = &self.record_block_buf[rs.block_start_in_buf..];
 
-        let result: IResult<&[u8], &[u8]> =
-            take_till(|x| x == 0)(&decompressed[rs.decompressed_offset_of_record..]);
-        let (_, record_decompressed) = result.unwrap();
-        let decoder = encoding_from_whatwg_label(self.encoding.as_str()).unwrap();
-        let text = decoder
-            .decode(record_decompressed, encoding::DecoderTrap::Strict)
-            .unwrap();
-        text
+        let (_, block_decompressed) =
+            record_block_parser(rs.block_csize, rs.block_dsize)(block_buf).unwrap();
+
+        let record_decompressed =
+            &block_decompressed[rs.record_start_in_de_block..rs.record_end_in_de_block];
+
+        let def = String::from_utf8_lossy(record_decompressed).to_string();
+
+        return def;
     }
 }
 
@@ -129,18 +128,29 @@ fn records_offset(
         while i < entries.len() {
             let entry = &entries[i];
 
-            // 当前entry已经属于下一个block
-            if entry.buf_decompressed_offset > pre_blocks_dsize_sum + block.dsize {
+            // 当前entry已经属于下一个block，注意等于号
+            if entry.record_start_in_de_buf >= pre_blocks_dsize_sum + block.dsize {
                 break;
             }
 
-            //否则 该entry属于当前block
+            let mut record_end_in_de_block = 0;
+            if i < entries.len() - 1 {
+                // 计算 record_end_in_decomp_block
+                let next_entry = &entries[i + 1];
+                record_end_in_de_block =
+                    next_entry.record_start_in_de_buf - pre_blocks_dsize_sum;
+            } else {
+                // last entry
+                record_end_in_de_block = block.dsize
+            }
+
             positions.push(RecordOffset {
                 text: entry.text.to_string(),
-                offset_of_block: pre_blocks_csize_sum,
-                decompressed_offset_of_record: entry.buf_decompressed_offset - pre_blocks_dsize_sum,
+                block_start_in_buf: pre_blocks_csize_sum,
                 block_csize: block.csize,
                 block_dsize: block.dsize,
+                record_start_in_de_block: entry.record_start_in_de_buf - pre_blocks_dsize_sum,
+                record_end_in_de_block,
             });
             i += 1;
         }

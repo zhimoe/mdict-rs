@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use adler32::adler32;
 use encoding::{all::UTF_16LE, Encoding};
+use log::info;
 use nom::multi::length_data;
 use nom::number::complete::{be_u32, le_u32};
 use nom::sequence::tuple;
@@ -23,10 +24,10 @@ pub struct Header {
      * "0" - no encryption
      * "1" - encrypt record block
      * "2" - encrypt key info block
+     * e.g. 牛津 "0" 朗文 "2"
      */
-    // 牛津 "0" 朗文 "2"
     pub encrypted: String,
-    // record bytes encoding "UTF-8"
+    // record bytes encoding, e.g. "UTF-8"
     pub encoding: String,
 }
 
@@ -45,6 +46,8 @@ pub fn parse_header(data: &[u8]) -> IResult<&[u8], Header> {
     for cap in re.captures_iter(info.as_str()) {
         attrs.insert(cap[1].to_string(), cap[2].to_string());
     }
+
+    info!(">>>the header content: {:?}", &attrs);
 
     let version = attrs
         .get("GeneratedByEngineVersion")
