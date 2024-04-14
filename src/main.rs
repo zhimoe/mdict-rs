@@ -33,7 +33,7 @@ fn app_config(config: &mut web::ServiceConfig) {
 async fn main() -> Result<(), Box<dyn Error>> {
     pretty_env_logger::init();
 
-    indexing(MDX_FILES, true);
+    indexing(MDX_FILES, false);
 
     println!("app serve on http://127.0.0.1:8181");
 
