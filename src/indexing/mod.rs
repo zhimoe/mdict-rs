@@ -1,19 +1,43 @@
+use std::fs;
+use std::path::PathBuf;
+
 use anyhow::Context;
+use log::info;
 use rusqlite::{params, Connection};
 
 use crate::mdict::mdx::Mdx;
 
+/// indexing all mdx files into db
+pub(crate) fn indexing(files: &Vec<&str>, reindex: bool) {
+    for file in files {
+        let db_file = format!("{}{}", file.to_string(), ".db");
+        if PathBuf::from(&db_file).exists() {
+            if reindex {
+                fs::remove_file(&db_file).expect("remove old db file error");
+                info!("old db file:{} removed", &db_file);
+                mdx_to_sqlite(&file).unwrap();
+            }
+        } else {
+            mdx_to_sqlite(&file).unwrap();
+        }
+    }
+}
+
 /// mdx entries and definition to sqlite table
-pub fn mdx_to_sqlite(conn: &mut Connection, mdx: &Mdx) -> anyhow::Result<()> {
+pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
+    let db_file = format!("{}{}", file.to_string(), ".db");
+    let mut conn = Connection::open(&db_file).unwrap();
+    let mdx = Mdx::new(&fs::read(file)?);
+
     conn.execute(
         "create table if not exists MDX_INDEX (
-                text text not null,
+                text text primary key not null ,
                 def text not null
          )",
         params![],
     )
     .with_context(|| "create table failed")?;
-    println!("{}", "table created");
+    println!("table crated for {:?}", &db_file);
 
     let tx = conn
         .transaction()
@@ -21,12 +45,12 @@ pub fn mdx_to_sqlite(conn: &mut Connection, mdx: &Mdx) -> anyhow::Result<()> {
 
     for r in mdx.items() {
         tx.execute(
-            "INSERT INTO MDX_INDEX VALUES (?,?)",
+            "insert or replace into MDX_INDEX values (?,?)",
             params![r.text, r.definition],
         )
         .with_context(|| "insert MDX_INDEX table error")?;
     }
-    println!("{}", "start commit");
     tx.commit().with_context(|| "transaction commit error")?;
+    conn.close().expect("close db connection failed");
     Ok(())
 }

@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Result, web};
+use actix_web::{web, HttpResponse, Result};
 use serde_derive::Deserialize;
 
 use crate::lucky;
@@ -9,13 +9,13 @@ pub struct QueryForm {
     word: String,
 }
 
-pub async fn handle_query(params: web::Form<QueryForm>) -> Result<HttpResponse> {
+pub(crate) async fn handle_query(params: web::Form<QueryForm>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok()
         .content_type("text/plain")
         .body(format!("{}", query(params.word.clone()))))
 }
 
-pub async fn handle_lucky() -> Result<HttpResponse> {
+pub(crate) async fn handle_lucky() -> Result<HttpResponse> {
     let word = lucky::lucky_word();
     Ok(HttpResponse::Ok()
         .content_type("text/plain")

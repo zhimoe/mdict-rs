@@ -1,15 +1,13 @@
-use std::io::prelude::*;
 use std::io::Read;
 
 use flate2::read::ZlibDecoder;
 use nom::bytes::complete::take;
 use nom::combinator::map;
-use nom::IResult;
 use nom::multi::count;
 use nom::number::complete::{be_u32, be_u64, le_u32};
 use nom::sequence::tuple;
+use nom::IResult;
 use ripemd::{Digest, Ripemd128};
-use salsa20::{cipher::KeyIvInit, Salsa20};
 
 use crate::mdict::header::{Header, Version};
 use crate::util::fast_decrypt;
@@ -61,7 +59,6 @@ fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
     )(data)
 }
 
-// todo: pub vs pub(crate) diff
 pub(crate) fn record_block_parser<'a>(
     size: usize,
     dsize: usize,
@@ -69,8 +66,8 @@ pub(crate) fn record_block_parser<'a>(
     map(
         tuple((le_u32, take(4_usize), take(size - 8))),
         move |(enc, checksum, encrypted)| {
+            // 规范里面好像没有加密这步
             let enc_method = (enc >> 4) & 0xf;
-            let enc_size = (enc >> 8) & 0xff;
             let comp_method = enc & 0xf;
 
             let mut md = Ripemd128::new();
@@ -81,8 +78,7 @@ pub(crate) fn record_block_parser<'a>(
                 0 => Vec::from(encrypted),
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
-                    let mut decrypt = vec![];
-                    let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
+                    let decrypt = vec![];
                     decrypt
                 }
                 _ => panic!("unknown enc method: {}", enc_method),

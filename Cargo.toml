@@ -10,6 +10,7 @@ name = "demo"
 path = "src/bin/demo.rs"
 
 [dependencies]
+lazy_static = "*"
 # error handling
 anyhow = "1"
 thiserror = "1"
@@ -31,7 +32,7 @@ ripemd128 = "0.1.2"
 salsa20 = "0.10.2"
 adler32 = "*"
 regex = "*"
-rusqlite = { version = "0.30", features = ["bundled"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 flate2 = { version = "1.0", features = ["zlib"], default-features = false }
 rand = "0.8"
 minilzo-rs = "0.6.0"
