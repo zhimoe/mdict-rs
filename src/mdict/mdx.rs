@@ -11,14 +11,14 @@ use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, Record
 //            block  │                │
 //                   └────────────────┘
 //                   ▲
-//                buf_offset
+//           block_start_in_buf
 //
 //                   ◄──── block_dsize ───────►
 //                   ┌───┬────────────┬───────┐
 //     block_decomp  │   │   record   │       │
 //                   └───┴────────────┴───────┘
 //                       ▲
-//                 block_decompressed_offset
+//           record_start_in_de_block
 //
 #[derive(Debug)]
 pub struct RecordOffset {
