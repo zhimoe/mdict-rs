@@ -6,10 +6,10 @@ use flate2::read::ZlibDecoder;
 use nom::{
     bytes::complete::{take, take_till},
     combinator::map,
+    IResult,
     multi::{length_data, many0},
     number::complete::{be_u32, be_u64, le_u32},
-    sequence::tuple,
-    IResult, Slice,
+    sequence::tuple, Slice,
 };
 use ripemd::{Digest, Ripemd128};
 
@@ -80,12 +80,12 @@ pub fn parse_key_block_header<'a>(
         let (_, kbh) = map(
             tuple((be_u64, be_u64, be_u64, be_u64, be_u64)),
             |(
-                block_num,
-                entry_num,
-                key_block_info_decompressed_len,
-                key_block_info_len,
-                key_blocks_len,
-            )| KeyBlockHeader {
+                 block_num,
+                 entry_num,
+                 key_block_info_decompressed_len,
+                 key_block_info_len,
+                 key_blocks_len,
+             )| KeyBlockHeader {
                 block_num: block_num as usize,
                 entry_num: entry_num as usize,
                 key_block_info_decompressed_len: key_block_info_decompressed_len as usize,
@@ -108,7 +108,7 @@ pub fn parse_key_block_info<'a>(
         Version::V2 => v2(data, block_info_len, &header.encrypted),
     };
 
-    fn v1<'a>(data: &'a [u8], block_info_len: usize) -> IResult<&'a [u8], Vec<KeyBlockSize>> {
+    fn v1(data: &[u8], block_info_len: usize) -> IResult<&[u8], Vec<KeyBlockSize>> {
         let (data, block_info) = take(block_info_len)(data)?;
         let key_blocks_size = decode_key_blocks_size_v1(block_info);
         Ok((data, key_blocks_size))
@@ -119,7 +119,7 @@ pub fn parse_key_block_info<'a>(
         block_info_len: usize,
         encrypted: &str,
     ) -> IResult<&'a [u8], Vec<KeyBlockSize>> {
-        let (left, block_info) = take(block_info_len)(data)?;
+        let (data, block_info) = take(block_info_len)(data)?;
         assert_eq!(block_info.slice(0..4), b"\x02\x00\x00\x00");
 
         let mut key_block_info = vec![];
@@ -146,9 +146,10 @@ pub fn parse_key_block_info<'a>(
                 .unwrap();
         }
 
-        let entry_infos = decode_key_blocks_size_v2(&key_block_info[..]);
-        Ok((left, entry_infos))
+        let key_blocks_size = decode_key_blocks_size_v2(&key_block_info[..]);
+        Ok((data, key_blocks_size))
     }
+
 
     /// number of entries, num of bytes, first, num of bytes, last?
     fn decode_key_blocks_size_v1(block_info: &[u8]) -> Vec<KeyBlockSize> {
@@ -206,8 +207,8 @@ pub fn parse_key_blocks<'a>(
 
     let mut key_entries: Vec<Entry> = vec![];
 
-    for info in key_blocks_size.iter() {
-        let (remain, decompressed) = key_block_parser(info.csize, info.dsize)(buf)?;
+    for block_size in key_blocks_size.iter() {
+        let (remain, decompressed) = key_block_parser(block_size.csize, block_size.dsize)(buf)?;
         let (_, mut one_block_entries) = match &header.version {
             Version::V1 => parse_block_items_v1(&decompressed[..], &header.encoding).unwrap(),
             Version::V2 => parse_block_items_v2(&decompressed[..], &header.encoding).unwrap(),
@@ -242,7 +243,7 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
 fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<Entry>> {
     let (remain, sep) = many0(map(
         tuple((be_u64, take_till(|x| x == 0), take(1_usize))),
-        |(offset, buf, _)| {
+        |(offset, buf, _end_zero)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
             Entry {
@@ -264,18 +265,17 @@ fn key_block_parser<'a>(
 ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
     map(
         tuple((le_u32, take(4_usize), take(csize - 8))),
-        move |(enc, checksum, encrypted)| {
+        move |(enc, checksum, encrypted_buf)| {
             let enc_method = (enc >> 4) & 0xf;
-            let _enc_size = (enc >> 8) & 0xff;
             let comp_method = enc & 0xf;
 
             let mut md = Ripemd128::new();
             md.update(checksum);
             let key = md.finalize();
-
+            // todo: 这一段好像和结构图中不太一样
             let data: Vec<u8> = match enc_method {
-                0 => Vec::from(encrypted),
-                1 => fast_decrypt(encrypted, key.as_slice()),
+                0 => Vec::from(encrypted_buf),
+                1 => fast_decrypt(encrypted_buf, key.as_slice()),
                 2 => {
                     let decrypt = vec![];
                     decrypt
