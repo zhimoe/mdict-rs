@@ -1,6 +1,6 @@
 use crate::mdict::header::parse_header;
 use crate::mdict::keyblock::{
-    Entry, parse_key_block_header, parse_key_block_info, parse_key_blocks,
+    parse_key_block_header, parse_key_block_info, parse_key_blocks, Entry,
 };
 use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
 
@@ -51,7 +51,6 @@ pub struct Record<'a> {
 /// record block bytes: entry and definition bytes, parsed by RecordEntry and RecordBlockSize
 /// entry: 是一个索引
 /// record: 是一条释义
-#[derive(Debug)]
 pub struct Mdx {
     pub records_offset: Vec<RecordOffset>,
     pub record_block_buf: Vec<u8>,
@@ -132,7 +131,7 @@ fn records_offset(
             if entry.record_start_in_de_buf >= pre_blocks_dsize_sum + block.dsize {
                 break;
             }
-
+            #[warn(unused_assignments)]
             let mut record_end_in_de_block = 0;
             if i < entries.len() - 1 {
                 // 计算 record_end_in_decomp_block

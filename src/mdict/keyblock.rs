@@ -6,10 +6,10 @@ use flate2::read::ZlibDecoder;
 use nom::{
     bytes::complete::{take, take_till},
     combinator::map,
-    IResult,
     multi::{length_data, many0},
     number::complete::{be_u32, be_u64, le_u32},
-    sequence::tuple, Slice,
+    sequence::tuple,
+    IResult, Slice,
 };
 use ripemd::{Digest, Ripemd128};
 
@@ -18,7 +18,7 @@ use crate::util::fast_decrypt;
 use crate::util::text_len_parser_v1;
 use crate::util::text_len_parser_v2;
 
-#[derive(Debug)]
+#[warn(dead_code)]
 pub struct KeyBlockHeader {
     pub block_num: usize,
     pub entry_num: usize,
@@ -30,7 +30,6 @@ pub struct KeyBlockHeader {
 
 /// every key block compressed size and decompressed size
 /// 用于解析出 RecordEntry list
-#[derive(Debug)]
 pub struct KeyBlockSize {
     pub csize: usize,
     pub dsize: usize,

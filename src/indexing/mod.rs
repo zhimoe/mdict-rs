@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use log::info;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
 use crate::mdict::mdx::Mdx;
 
@@ -26,7 +26,7 @@ pub(crate) fn indexing(files: &[&str], reindex: bool) {
 /// mdx entries and definition to sqlite table
 pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
     let db_file = format!("{}{}", file.to_string(), ".db");
-    let mut conn = Connection::open(&db_file).unwrap();
+    let mut conn = Connection::open(&db_file)?;
     let mdx = Mdx::new(&fs::read(file)?);
 
     conn.execute(
