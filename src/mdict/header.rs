@@ -5,8 +5,7 @@ use encoding::{all::UTF_16LE, Encoding};
 use log::info;
 use nom::multi::length_data;
 use nom::number::complete::{be_u32, le_u32};
-use nom::sequence::tuple;
-use nom::{IResult, Slice};
+use nom::{IResult, Parser};
 use regex::Regex;
 
 #[derive(Debug)]
@@ -33,7 +32,7 @@ pub struct Header {
 
 pub fn parse_header(data: &[u8]) -> IResult<&[u8], Header> {
     // length_data(be_u32) 先读取一个be_u32 number,然后根据number读取对应长度bytes
-    let (data, (header_buf, checksum)) = tuple((length_data(be_u32), le_u32))(data)?;
+    let (data, (header_buf, checksum)) = (length_data(be_u32), le_u32).parse(data)?;
     // &[8] 实现Read接口
     assert_eq!(adler32(header_buf).unwrap(), checksum);
     // string from utf_16le encoding
@@ -53,9 +52,11 @@ pub fn parse_header(data: &[u8]) -> IResult<&[u8], Header> {
         .get("GeneratedByEngineVersion")
         .unwrap()
         .trim()
-        .slice(0..1)
-        .parse::<u8>()
-        .unwrap();
+        .chars()
+        .next()
+        .unwrap()
+        .to_digit(10)
+        .unwrap() as u8;
 
     let version = match version {
         1 => Version::V1,

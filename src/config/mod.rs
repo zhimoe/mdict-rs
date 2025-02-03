@@ -7,7 +7,6 @@ pub const MDX_FILES: &[&str] = &[
     // "./resources/mdx/en/简明必应.mdx",
 ];
 
-
 pub fn static_path() -> anyhow::Result<PathBuf> {
     let mut path: PathBuf = env!("CARGO_MANIFEST_DIR").into();
     path.push("resources/static");

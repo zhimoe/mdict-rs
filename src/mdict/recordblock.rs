@@ -5,8 +5,7 @@ use nom::bytes::complete::take;
 use nom::combinator::map;
 use nom::multi::count;
 use nom::number::complete::{be_u32, be_u64, le_u32};
-use nom::sequence::tuple;
-use nom::IResult;
+use nom::{IResult, Parser};
 use ripemd::{Digest, Ripemd128};
 
 use crate::mdict::header::{Header, Version};
@@ -31,40 +30,42 @@ pub fn parse_record_blocks<'a>(
 
 fn parse_record_blocks_v1(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
     let (data, (records_num, _entries_num, record_info_len, _record_buf_len)) =
-        tuple((be_u32, be_u32, be_u32, be_u32))(data)?;
+        (be_u32, be_u32, be_u32, be_u32).parse(data)?;
 
     assert_eq!(records_num * 8, record_info_len);
 
     count(
-        map(tuple((be_u32, be_u32)), |(csize, dsize)| RecordBlockSize {
+        map((be_u32, be_u32), |(csize, dsize)| RecordBlockSize {
             csize: csize as usize,
             dsize: dsize as usize,
         }),
         records_num as usize,
-    )(data)
+    )
+        .parse(data)
 }
 
 fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
     let (data, (records_num, _entries_num, record_info_len, _record_buf_len)) =
-        tuple((be_u64, be_u64, be_u64, be_u64))(data)?;
+        (be_u64, be_u64, be_u64, be_u64).parse(data)?;
 
     assert_eq!(records_num * 16, record_info_len,);
 
     count(
-        map(tuple((be_u64, be_u64)), |(csize, dsize)| RecordBlockSize {
+        map((be_u64, be_u64), |(csize, dsize)| RecordBlockSize {
             csize: csize as usize,
             dsize: dsize as usize,
         }),
         records_num as usize,
-    )(data)
+    )
+        .parse(data)
 }
 
 pub(crate) fn record_block_parser<'a>(
     size: usize,
     dsize: usize,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
+) -> impl Parser<&'a [u8], Output=Vec<u8>, Error=nom::error::Error<&'a [u8]>> {
     map(
-        tuple((le_u32, take(4_usize), take(size - 8))),
+        (le_u32, take(4_usize), take(size - 8)),
         move |(enc, checksum, encrypted)| {
             // 规范里面好像没有加密这步
             let enc_method = (enc >> 4) & 0xf;

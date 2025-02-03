@@ -3,6 +3,7 @@ use crate::mdict::keyblock::{
     parse_key_block_header, parse_key_block_info, parse_key_blocks, Entry,
 };
 use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
+use nom::Parser;
 
 /// 一个record的定位信息：在buf中的offset和在block解压后的offset
 /// draw with: https://asciiflow.com/#/
@@ -102,7 +103,7 @@ impl Mdx {
         let block_buf = &self.record_block_buf[rs.block_start_in_buf..];
 
         let (_, block_decompressed) =
-            record_block_parser(rs.block_csize, rs.block_dsize)(block_buf).unwrap();
+            record_block_parser(rs.block_csize, rs.block_dsize).parse(block_buf).unwrap();
 
         let record_decompressed =
             &block_decompressed[rs.record_start_in_de_block..rs.record_end_in_de_block];
@@ -131,13 +132,12 @@ fn records_offset(
             if entry.record_start_in_de_buf >= pre_blocks_dsize_sum + block.dsize {
                 break;
             }
-            #[warn(unused_assignments)]
+
             let mut record_end_in_de_block = 0;
             if i < entries.len() - 1 {
                 // 计算 record_end_in_decomp_block
                 let next_entry = &entries[i + 1];
-                record_end_in_de_block =
-                    next_entry.record_start_in_de_buf - pre_blocks_dsize_sum;
+                record_end_in_de_block = next_entry.record_start_in_de_buf - pre_blocks_dsize_sum;
             } else {
                 // last entry
                 record_end_in_de_block = block.dsize
@@ -149,7 +149,7 @@ fn records_offset(
                 block_csize: block.csize,
                 block_dsize: block.dsize,
                 record_start_in_de_block: entry.record_start_in_de_buf - pre_blocks_dsize_sum,
-                record_end_in_de_block,
+                record_end_in_de_block: record_end_in_de_block,
             });
             i += 1;
         }

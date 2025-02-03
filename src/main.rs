@@ -1,10 +1,10 @@
 use std::error::Error;
 
 use actix_files;
-use actix_web::{App, HttpServer, middleware, web};
+use actix_web::{middleware, web, App, HttpServer};
 use pretty_env_logger;
 
-use crate::config::{MDX_FILES, static_path};
+use crate::config::{static_path, MDX_FILES};
 use crate::handlers::{handle_lucky, handle_query};
 use crate::indexing::indexing;
 
@@ -42,8 +42,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })
-        .bind(("127.0.0.1", 8181))?
-        .run()
-        .await
-        .map_err(|e| Box::new(e) as Box<dyn Error>)
+    .bind(("127.0.0.1", 8181))?
+    .run()
+    .await
+    .map_err(|e| Box::new(e) as Box<dyn Error>)
 }

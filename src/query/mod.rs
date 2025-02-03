@@ -1,5 +1,5 @@
 use log::info;
-use rusqlite::{Connection, named_params};
+use rusqlite::{named_params, Connection};
 
 use crate::config::MDX_FILES;
 

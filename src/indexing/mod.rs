@@ -36,7 +36,7 @@ pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
          )",
         params![],
     )
-        .with_context(|| "create table failed")?;
+    .with_context(|| "create table failed")?;
     println!("table crated for {:?}", &db_file);
 
     let tx = conn
@@ -48,7 +48,7 @@ pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
             "insert or replace into MDX_INDEX values (?,?)",
             params![r.text, r.definition],
         )
-            .with_context(|| "insert MDX_INDEX table error")?;
+        .with_context(|| "insert MDX_INDEX table error")?;
     }
     tx.commit().with_context(|| "transaction commit error")?;
     conn.close().expect("close db connection failed");
