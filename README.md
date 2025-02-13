@@ -3,19 +3,20 @@
 a simple web dictionary write in rust, base on mdx format dictionary file.
 it's at an early stage of development, now only support mdx version 2.0 with encrypted=2 or 0
 
-## usage
+## Usage
 
-1. put your mdx file in `resources/mdx/en` folder ando config `src/config/mod.rs`
-2. if your mdx file has separate css file, put it in `resources/static/` folder
-3. run
+1. Copy your dictionary file (.db or .mdx) to the `resources/dict` directory. To use a custom location, employ the `-d` flag when running the application.
+   > Post-generation tip: After database creation, you may delete the original .mdx file. Use the `-g` flag to pre-generate the database file locally before deployment.
+2. If your mdx file has an associated CSS file, place it in the `resources/static/` folder, or configure a custom directory using the `-s` option.
+3. Run the application.
 
 ```bash
-cargo run --bin mdict-rs
+./mdict-rs
 # now open your chrome, and search
 # http://localhost:8181
-``` 
+```
 
-## screenshot
+## Screenshot
 
 ![screenshot](screenshot.jpg)
 

@@ -4,28 +4,32 @@ version = "0.1.0"
 authors = ["zhimoe"]
 edition = "2021"
 
-
 [dependencies]
 # error handling
 anyhow = "1"
 thiserror = "2"
 
-pretty_env_logger = "0.5.0"
 log = "0.4"
-serde_derive = "1.0"
+pretty_env_logger = "0.5.0"
 serde = "1"
+serde_derive = "1.0"
 
-actix-web = "4"
 actix-files = "0.6"
+actix-web = "4"
 
-nom = "8"
 encoding = "0.2"
+nom = "8"
 
 adler32 = "1"
-regex = "1.5"
-rusqlite = { version = "0.33", features = ["bundled"] }
+clap = { version = "4.5.29", features = ["derive"] }
 flate2 = { version = "1.0", features = ["zlib"], default-features = false }
-rand = "0.8"
 minilzo-rs = "0.6.0"
-ripemd = "0.1.3"
 once_cell = "1.19.0"
+rand = "0.8"
+regex = "1.5"
+ripemd = "0.1.3"
+rusqlite = { version = "0.33", features = ["bundled"] }
+
+[profile.release]
+opt-level = "s"
+lto = true

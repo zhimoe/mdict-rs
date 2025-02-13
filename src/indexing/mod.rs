@@ -1,31 +1,35 @@
-use std::fs;
-use std::path::PathBuf;
-
+use crate::mdict::mdx::Mdx;
+use crate::util::cli::get_dicts_mdx;
 use anyhow::Context;
 use log::info;
 use rusqlite::{params, Connection};
-
-use crate::mdict::mdx::Mdx;
+use std::fs;
+use std::path::PathBuf;
 
 /// indexing all mdx files into db
-pub(crate) fn indexing(files: &[&str], reindex: bool) {
+pub(crate) fn indexing(reindex: bool) {
+    let files = if let Some(v) = get_dicts_mdx().unwrap() {
+        v
+    } else {
+        return;
+    };
     for file in files {
-        let db_file = format!("{}{}", file.to_string(), ".db");
-        if PathBuf::from(&db_file).exists() {
+        let db_file = file.with_extension("db");
+        if db_file.exists() {
             if reindex {
                 fs::remove_file(&db_file).expect("remove old db file error");
-                info!("old db file:{} removed", &db_file);
-                mdx_to_sqlite(&file).unwrap();
+                info!("old db file:{} removed", &db_file.to_string_lossy());
+                mdx_to_sqlite(file).unwrap();
             }
         } else {
-            mdx_to_sqlite(&file).unwrap();
+            mdx_to_sqlite(file).unwrap();
         }
     }
 }
 
 /// mdx entries and definition to sqlite table
-pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
-    let db_file = format!("{}{}", file.to_string(), ".db");
+pub(crate) fn mdx_to_sqlite(file: PathBuf) -> anyhow::Result<()> {
+    let db_file = file.with_extension("db");
     let mut conn = Connection::open(&db_file)?;
     let mdx = Mdx::new(&fs::read(file)?);
 
