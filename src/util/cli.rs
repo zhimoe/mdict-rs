@@ -3,7 +3,10 @@ use clap::Parser;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use std::{
-    collections::HashMap, fs::read_dir, path::PathBuf, sync::LazyLock
+    collections::{BTreeMap, HashMap},
+    fs::read_dir,
+    path::PathBuf,
+    sync::LazyLock,
 };
 
 #[derive(Parser)]
@@ -31,10 +34,12 @@ pub struct Cli {
 }
 
 pub static ARGS: LazyLock<Cli> = LazyLock::new(|| Cli::parse());
-pub static DB_POOLS: LazyLock<HashMap<String,Pool<SqliteConnectionManager>>> =
+pub static DB_POOLS: LazyLock<HashMap<String, Pool<SqliteConnectionManager>>> =
     LazyLock::new(|| create_pool().unwrap());
+pub static FILE_MAP: LazyLock<Option<BTreeMap<String, PathBuf>>> =
+    LazyLock::new(|| get_css_js().unwrap());
 
-fn walk_dir(path: &PathBuf, dicts: &mut Vec<PathBuf>, ext: &str) -> Result<()> {
+fn walk_dir(path: &PathBuf, vec: &mut Vec<PathBuf>, ext: &[&str]) -> Result<()> {
     for entry in
         read_dir(path).with_context(|| format!("Failed to read directory: {}", path.display()))?
     {
@@ -42,12 +47,12 @@ fn walk_dir(path: &PathBuf, dicts: &mut Vec<PathBuf>, ext: &str) -> Result<()> {
 
         if path.is_file() {
             if let Some(e) = path.extension() {
-                if e == ext {
-                    dicts.push(path);
+                if ext.contains(&e.to_str().unwrap()) {
+                    vec.push(path);
                 }
             }
         } else if path.is_dir() {
-            walk_dir(&path, dicts, ext)?;
+            walk_dir(&path, vec, ext)?;
         }
     }
     Ok(())
@@ -56,7 +61,7 @@ fn walk_dir(path: &PathBuf, dicts: &mut Vec<PathBuf>, ext: &str) -> Result<()> {
 pub fn get_dicts_mdx() -> Result<Option<Vec<PathBuf>>> {
     let mut mdx = Vec::new();
     let path = get_dict_path().unwrap();
-    walk_dir(&path, &mut mdx, "mdx")?;
+    walk_dir(&path, &mut mdx, &["mdx"])?;
 
     if mdx.is_empty() {
         Ok(None)
@@ -65,16 +70,32 @@ pub fn get_dicts_mdx() -> Result<Option<Vec<PathBuf>>> {
     }
 }
 
+pub fn get_css_js() -> Result<Option<BTreeMap<String, PathBuf>>> {
+    let mut file = Vec::new();
+    let path = get_dict_path().unwrap();
+    walk_dir(&path, &mut file, &["css", "js"])?;
+
+    if file.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(
+            file.into_iter()
+                .filter_map(|pb| {
+                    pb.file_name()
+                        .map(|s| (s.to_string_lossy().into_owned(), pb.clone()))
+                })
+                .collect(),
+        ))
+    }
+}
+
 fn get_dicts_db() -> Result<Vec<PathBuf>> {
     let mut db = Vec::new();
     let path = get_dict_path().unwrap();
-    walk_dir(&path, &mut db, "db")?;
-    if let Some(v) = get_dicts_mdx().unwrap() {
-        for i in v {
-            let db_file = i.with_extension("db");
-            if !db.contains(&db_file) {
-                db.push(db_file);
-            }
+    walk_dir(&path, &mut db, &["mdx", "db"])?;
+    for p in &mut db {
+        if p.extension().unwrap() == "mdx" {
+            p.set_extension("db");
         }
     }
     if db.is_empty() {
@@ -83,13 +104,16 @@ fn get_dicts_db() -> Result<Vec<PathBuf>> {
     Ok(db)
 }
 
-pub fn create_pool() -> Result<HashMap<String,Pool<SqliteConnectionManager>>> {
+pub fn create_pool() -> Result<HashMap<String, Pool<SqliteConnectionManager>>> {
     let db_files = get_dicts_db().unwrap();
-    let mut hashmap=HashMap::new();
-    for path in db_files{
+    let mut hashmap = HashMap::new();
+    for path in db_files {
         let manager = SqliteConnectionManager::file(&path);
         let pool = Pool::new(manager).unwrap();
-        hashmap.insert(path.file_stem().unwrap().to_string_lossy().to_string(), pool);
+        hashmap.insert(
+            path.file_stem().unwrap().to_string_lossy().to_string(),
+            pool,
+        );
     }
     Ok(hashmap)
 }
