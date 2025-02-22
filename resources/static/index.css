@@ -35,3 +35,34 @@ input, #lucky-btn {
     font-weight: bold;
     border: 1px solid #e8c49a;
 }
+
+.dict-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin: 15px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dict-header {
+    background-color: #f5f5f5;
+    padding: 12px 20px;
+    font-weight: bold;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 8px 8px 0 0;
+}
+
+.dict-content {
+    padding: 15px 20px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+}
+
+.dict-content a {
+    color: #0366d6;
+    text-decoration: none;
+    margin-right: 15px;
+}
+
+.dict-content a:hover {
+    text-decoration: underline;
+}

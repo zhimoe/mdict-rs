@@ -11,13 +11,28 @@ function queryMdx(word) {
         url: './query',
         type: 'POST',
         data: {'word': word},
-        dataType: 'html',
-        success: function (data) {
-            if (data !== '') {
-                $('#mdx-resp').html(data).show();
+        dataType: 'json',  // 确保返回的是JSON格式
+        success: function (response) {
+            if (response.data && response.data.length > 0) {
+                const cards = response.data.map(item => {
+                    // 清理内容中的特殊字符
+                    const content = item.content.replace(/\u0000/g, '');
+                    
+                    return `
+                        <div class="dict-card">
+                            <div class="dict-header">${item.dict}</div>
+                            <div class="dict-content">${content}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                $('#mdx-resp').html(cards).show();
             } else {
                 $('#mdx-resp').hide();
             }
+        },
+        error: function() {
+            $('#mdx-resp').html('查询失败').show();
         }
     });
 }

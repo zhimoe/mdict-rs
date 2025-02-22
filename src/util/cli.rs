@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Ok, Result};
 use clap::Parser;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use std::{
-    fs::read_dir,
-    path::PathBuf,
-    sync::{LazyLock, Mutex},
+    collections::HashMap, fs::read_dir, path::PathBuf, sync::LazyLock
 };
 
 #[derive(Parser)]
@@ -31,8 +31,8 @@ pub struct Cli {
 }
 
 pub static ARGS: LazyLock<Cli> = LazyLock::new(|| Cli::parse());
-pub static DB_FILES: LazyLock<Mutex<Vec<PathBuf>>> =
-    LazyLock::new(|| Mutex::new(get_dicts_db().unwrap()));
+pub static DB_POOLS: LazyLock<HashMap<String,Pool<SqliteConnectionManager>>> =
+    LazyLock::new(|| create_pool().unwrap());
 
 fn walk_dir(path: &PathBuf, dicts: &mut Vec<PathBuf>, ext: &str) -> Result<()> {
     for entry in
@@ -65,7 +65,7 @@ pub fn get_dicts_mdx() -> Result<Option<Vec<PathBuf>>> {
     }
 }
 
-pub fn get_dicts_db() -> Result<Vec<PathBuf>> {
+fn get_dicts_db() -> Result<Vec<PathBuf>> {
     let mut db = Vec::new();
     let path = get_dict_path().unwrap();
     walk_dir(&path, &mut db, "db")?;
@@ -81,6 +81,17 @@ pub fn get_dicts_db() -> Result<Vec<PathBuf>> {
         return Err(anyhow!("No dictionary files found"));
     }
     Ok(db)
+}
+
+pub fn create_pool() -> Result<HashMap<String,Pool<SqliteConnectionManager>>> {
+    let db_files = get_dicts_db().unwrap();
+    let mut hashmap=HashMap::new();
+    for path in db_files{
+        let manager = SqliteConnectionManager::file(&path);
+        let pool = Pool::new(manager).unwrap();
+        hashmap.insert(path.file_stem().unwrap().to_string_lossy().to_string(), pool);
+    }
+    Ok(hashmap)
 }
 
 fn get_dict_path() -> Result<PathBuf> {
