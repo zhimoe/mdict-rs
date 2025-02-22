@@ -1,0 +1,259 @@
+:root {
+  --neon-blue: #0ff;
+  --acid-yellow: #ff0;
+  --pink-flamingo: #f0f;
+  --matrix-green: #0f0;
+  --cyber-purple: #800080;
+  --base-unit: 0.5vmin;
+  --fluid-size: clamp(12px, 3vmax, 24px);
+}
+
+body {
+  background: linear-gradient(45deg, #000 25%, #111 25%, #111 50%, #000 50%, #000 75%, #111 75%);
+  background-size: 100px 100px;
+  color: var(--neon-blue);
+  font-family: 'Comic Sans MS', 'Arial Black', sans-serif;
+  line-height: 1.6;
+  margin: 2rem;
+}
+
+#content {
+  border: 3px dashed var(--acid-yellow);
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 30px var(--pink-flamingo);
+}
+
+#top-area {
+  transform: rotate(-1deg);
+  margin-bottom: 3rem;
+}
+
+h2 {
+  font-size: 4rem;
+  text-shadow: 3px 3px var(--pink-flamingo);
+  -webkit-text-stroke: 1px var(--matrix-green);
+  color: transparent;
+  letter-spacing: 0.5rem;
+}
+
+#query-area {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  padding: 1rem;
+  background: repeating-linear-gradient(45deg,
+      transparent,
+      transparent 10px,
+      var(--cyber-purple) 10px,
+      var(--cyber-purple) 20px);
+}
+
+input,
+button {
+  background: black;
+  border: 2px solid var(--neon-blue);
+  padding: 1rem;
+  color: var(--matrix-green) !important;
+  font-size: 1.2rem;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+input:focus {
+  outline: none;
+  box-shadow: 0 0 20px var(--neon-blue);
+  transform: skew(-10deg);
+}
+
+button {
+  background: linear-gradient(45deg, var(--pink-flamingo), var(--cyber-purple));
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover {
+  transform: scale(1.1) rotate(3deg);
+  filter: hue-rotate(90deg);
+}
+
+button::before {
+  content: "✦";
+  position: absolute;
+  left: -20px;
+  animation: glitch 1s infinite;
+}
+
+.dict-card {
+  position: relative;
+  padding: calc(var(--base-unit) * 8);
+  margin: calc(var(--base-unit) * 4) 0;
+  overflow: visible;
+  container-type: inline-size;
+}
+
+.dict-header {
+  font-size: clamp(1.2rem, 4cqi, 1.8rem);
+  writing-mode: vertical-rl;
+  position: absolute;
+  left: clamp(-3rem, -10%, -1.2rem);
+  top: 50%;
+  transform: translateY(-50%) skew(-5deg);
+  background: linear-gradient(45deg,
+      rgba(0, 0, 0, 0.9) 30%,
+      rgba(128, 0, 128, 0.6) 70%);
+  padding: clamp(0.5rem, 2cqi, 1.2rem) clamp(0.3rem, 1cqi, 0.8rem);
+  border: 3px solid var(--matrix-green);
+  box-shadow: 12px 0 25px rgba(255, 0, 255, 0.4);
+  z-index: 2;
+  clip-path: polygon(0 10%, 100% 0, 100% 90%, 0 100%);
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  max-height: 80vh;
+}
+
+.dict-content {
+  position: relative;
+  z-index: 1;
+  margin-left: clamp(-2rem, -5%, 0);
+  padding: clamp(1rem, 3cqi, 1.5rem);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--neon-blue);
+  transform: perspective(500px) rotateY(2deg);
+  column-count: 1;
+  font-size: var(--fluid-size);
+}
+
+/* 容器查询适配 */
+@container (width < 400px) {
+  .dict-header {
+    writing-mode: horizontal-tb;
+    left: 0;
+    top: -2rem;
+    transform: skew(-5deg) rotate(2deg);
+    width: fit-content;
+  }
+
+  .dict-content {
+    margin-left: 0;
+    transform: none;
+  }
+}
+
+/* 穿戴设备特殊适配 */
+@media (max-width: 300px) and (hover: none) {
+  :root {
+    --base-unit: 0.2vmin;
+  }
+
+  .dict-card {
+    padding: 1rem 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .dict-header {
+    position: static;
+    writing-mode: horizontal-tb;
+    margin-bottom: 0.5rem;
+    transform: skew(-3deg);
+    width: 120%;
+    left: -10%;
+  }
+
+  .dict-content {
+    column-count: 1;
+    padding: 0.5rem;
+    transform: skew(2deg);
+  }
+
+  /* 优化可穿戴设备交互 */
+  button {
+    padding: 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  input {
+    min-height: 3rem;
+  }
+}
+
+/* 动态密度调节 */
+@media (pointer: coarse) {
+  .dict-header {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+
+  .dict-content {
+    line-height: 1.8;
+    letter-spacing: 0.05rem;
+  }
+}
+
+/* 悬停时增强重叠动态 */
+.dict-header:hover {
+  left: -1.8rem;
+  transform: translateY(-50%) rotate(180deg) skew(-8deg);
+  background: linear-gradient(45deg,
+      rgba(0, 0, 0, 0.7) 20%,
+      rgba(128, 0, 128, 0.8) 80%);
+  box-shadow: 18px 0 35px var(--pink-flamingo);
+}
+
+/* 添加内容区域的透视补偿 */
+.dict-content::before {
+  content: "";
+  position: absolute;
+  left: -3rem;
+  top: 0;
+  bottom: 0;
+  width: 3rem;
+  background: linear-gradient(to right,
+      rgba(0, 255, 255, 0.15),
+      transparent);
+}
+
+
+
+footer {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 1rem;
+  background: black;
+  border: 1px solid var(--pink-flamingo);
+  transform: rotate(3deg);
+}
+
+@keyframes glitch {
+  0% {
+    left: -20px;
+    opacity: 0;
+  }
+
+  50% {
+    left: 120%;
+    opacity: 1;
+  }
+
+  100% {
+    left: -20px;
+    opacity: 0;
+  }
+}
+
+/* 添加一些后现代主义装饰元素 */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(circle at 10% 20%, var(--neon-blue) 1%, transparent 2%),
+    radial-gradient(circle at 90% 80%, var(--pink-flamingo) 1%, transparent 2%);
+  background-size: 50px 50px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: -1;
+}

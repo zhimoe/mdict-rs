@@ -1,68 +1,220 @@
-main {
-    min-height: calc(100vh - 50px);
+:root {
+    --primary: #2c3e50;
+    --secondary: #3498db;
+    --accent: #e74c3c;
+    --text: #2c3e50;
+    --bg: #f8f9fa;
+    --card-bg: #ffffff;
 }
 
-footer {
-    height: 50px;
-    text-align: center;
-    font-family: consolas, "fira code", monospace;
-    font-size: 10px;
+/* 基础重置 */
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    background-color: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
+/* 主内容区 */
+#content {
+    flex: 1;
+    padding: 2rem 1rem;
+}
+
+/* 顶部搜索区 */
 #top-area {
-    text-align: center;
-    /* todo: 置顶不随页面滚动 */
+    margin-bottom: 3rem;
+    position: relative;
 }
 
-h1, h2, h3 {
-    font-family: "Fira Code", monospace, "PingFang SC", "Microsoft YaHei";
+h2 {
+    color: var(--primary);
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.05em;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-input, #lucky-btn {
-    width: 600px;
-    height: 50px;
-    border-radius: 3px;
-    outline-style: none;
-    border: 1px solid #e8c49a;
-    padding: 8px;
-    vertical-align: middle; /* 解决input和button上下错位问题 */
-    font-size: 16px;
-    font-family: "Fira Code", monospace, "PingFang SC", "Microsoft YaHei";
+#query-area {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#word {
+    flex: 1;
+    min-width: 250px;
+    padding: 1rem;
+    border: 2px solid var(--secondary);
+    border-radius: 50px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+#word:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
 }
 
 #lucky-btn {
-    width: 100px;
-    font-weight: bold;
-    border: 1px solid #e8c49a;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--secondary), #2980b9);
+    border: none;
+    border-radius: 50px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
+#lucky-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+/* 词典卡片 */
 .dict-card {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    margin: 15px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: var(--card-bg);
+    border-radius: 15px;
+    margin: 1.5rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.dict-card:hover {
+    transform: translateY(-3px);
 }
 
 .dict-header {
-    background-color: #f5f5f5;
-    padding: 12px 20px;
-    font-weight: bold;
-    border-bottom: 1px solid #e0e0e0;
-    border-radius: 8px 8px 0 0;
+    background: var(--primary);
+    color: white;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    font-size: 1.2rem;
+    position: relative;
+}
+
+.dict-header::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent);
 }
 
 .dict-content {
-    padding: 15px 20px;
-    background: white;
-    border-radius: 0 0 8px 8px;
+    padding: 1.5rem;
+    font-size: 1rem;
+    line-height: 1.8;
 }
 
-.dict-content a {
-    color: #0366d6;
-    text-decoration: none;
-    margin-right: 15px;
+a {
+    color: var(--secondary);
 }
 
-.dict-content a:hover {
-    text-decoration: underline;
+/* 响应式设计 */
+@media (max-width: 768px) {
+    h2 {
+        font-size: 2rem;
+    }
+
+    #query-area {
+        flex-direction: column;
+    }
+
+    #word {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px),
+(max-device-width: 480px) and (orientation: portrait) {
+    body {
+        padding: 10px;
+    }
+
+    h2 {
+        font-size: 1.75rem;
+    }
+
+    .dict-content {
+        padding: 1rem;
+        font-size: 0.95rem;
+    }
+
+    #word {
+        font-size: 1rem;
+        padding: 0.8rem;
+    }
+
+    #lucky-btn {
+        width: 100%;
+        padding: 0.8rem;
+    }
+}
+
+/* 可穿戴设备优化 */
+@media (max-width: 320px),
+(max-device-width: 320px) {
+    :root {
+        font-size: 14px;
+    }
+
+    .dict-card {
+        margin: 1rem 0;
+    }
+
+    .dict-header {
+        padding: 0.8rem 1rem;
+    }
+
+    #content {
+        padding: unset;
+    }
+}
+
+/* 排版增强 */
+.headword {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.etitle {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.para {
+    display: block;
+    margin: 0.8rem 0;
+}
+
+.origin {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    border-top: 1px dashed #eee;
+    padding-top: 1rem;
+}
+
+footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #7f8c8d;
+    font-size: 0.9rem;
 }
