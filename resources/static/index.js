@@ -1,7 +1,7 @@
 // 光标默认可输入
 $(document).ready(function (e) {
-        $('#word').focus();
-    }
+    $('#word').focus();
+}
 );
 
 // 查询mdx
@@ -10,14 +10,14 @@ function queryMdx(word) {
     $.ajax({
         url: './query',
         type: 'POST',
-        data: {'word': word},
+        data: { 'word': word },
         dataType: 'json',  // 确保返回的是JSON格式
         success: function (response) {
             if (response.data && response.data.length > 0) {
                 const cards = response.data.map(item => {
                     // 清理内容中的特殊字符
                     const content = item.content.replace(/\u0000/g, '');
-                    
+
                     return `
                         <div class="dict-card">
                             <div class="dict-header">${item.dict}</div>
@@ -25,13 +25,13 @@ function queryMdx(word) {
                         </div>
                     `;
                 }).join('');
-                
+
                 $('#mdx-resp').html(cards).show();
             } else {
                 $('#mdx-resp').hide();
             }
         },
-        error: function() {
+        error: function () {
             $('#mdx-resp').html('查询失败').show();
         }
     });
@@ -62,14 +62,24 @@ $(document).keydown(function (e) {
 });
 
 // 监听牛津8解释页面的外部单词链接
-$(document).on('click', 'a', function (e) {
-    console.log($(this).attr('href'));
+$(document).on('click', 'a[href^="/"]', function (e) {
     let href = $(this).attr('href');// '/cool'
-    if (href.startsWith('/') && !href.startsWith('/#')) {
+    console.log(href);
+    if (!href.startsWith('/#')) {
         $('#word').val(href.slice(1)) // 'cool'
         postQuery();
         e.preventDefault()
     }
+});
+
+// 监听单词链接(Entry)
+$(document).on('click', 'a[href^="entry://"]', function (e) {
+    let href = $(this).attr('href');// 'entry://hypochondriac'
+    console.log(href);
+    let word = href.replace('entry://', '');
+    $('#word').val(word)
+    postQuery();
+    e.preventDefault()
 });
 
 // 捕获ctrl+L快捷键
