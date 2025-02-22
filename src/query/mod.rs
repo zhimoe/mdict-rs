@@ -28,7 +28,9 @@ static RE: LazyLock<Regex> = LazyLock::new(|| {
             (?:[^"f]|f[^i]|fi[^l]|fil[^e]|file[^s])*?  # 排除以files/开头的路径
             (.*?\.(?:css|js))   # 目标文件扩展名
         )
-        "#).unwrap()
+        "#,
+    )
+    .unwrap()
 });
 
 pub fn query(word: String) -> impl Responder {
@@ -53,7 +55,7 @@ pub fn query(word: String) -> impl Responder {
                 if !full_path.starts_with("files/") {
                     format!("{}{}{}", &caps[1], "files/", full_path)
                 } else {
-                    caps[0].to_string()  // 保留原内容
+                    caps[0].to_string() // 保留原内容
                 }
             });
 

@@ -5,10 +5,10 @@ it's at an early stage of development, now only support mdx version 2.0 with enc
 
 ## Usage
 
-1. Copy your dictionary file (.db or .mdx) to the `resources/dict` directory. To use a custom location, employ the `-d` flag when running the application.
-   > Post-generation tip: After database creation, you may delete the original .mdx file. Use the `-g` flag to pre-generate the database file locally before deployment.
-2. If your mdx file has an associated CSS file, place it in the `resources/static/` folder, or configure a custom directory using the `-s` option.
-3. Run the application.
+1. Copy your dictionary file (.db or .mdx) to the resources/dict directory. To specify a custom location, use the -d flag when launching the application.
+   > Tip: After database generation completes, you can safely remove the original .mdx file. For deployment preparation, use the -g flag to generate the database file locally first.
+2. If your MDX file has a corresponding CSS stylesheet, place it in the same dictionary folder.
+3. Launch the application.
 
 ```bash
 ./mdict-rs
@@ -18,7 +18,7 @@ it's at an early stage of development, now only support mdx version 2.0 with enc
 
 ## Screenshot
 
-![screenshot](screenshot.jpg)
+![screenshot](screenshot.png)
 
 ## 参考
 
