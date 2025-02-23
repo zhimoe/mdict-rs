@@ -61,7 +61,14 @@ function render(responseData) {
         fragment.appendChild(card);
     });
 
-    container.replaceChildren(fragment);
+    // 兼容replaceChildren方法
+    if (typeof container.replaceChildren === 'function') {
+        container.replaceChildren(fragment);
+    } else {
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
     container.style.display = 'block';
 }
 
