@@ -1,3 +1,4 @@
+pub mod cli;
 use nom::number::complete::{be_u16, be_u8};
 use nom::IResult;
 

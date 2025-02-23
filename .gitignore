@@ -16,3 +16,4 @@ Cargo.lock
 *.mdx.db
 mdx/
 
+/resources/dict
