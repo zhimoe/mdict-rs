@@ -35,8 +35,7 @@ jobs:
           args: "--release"
           strip: true
       - name: Publish artifacts and release
-        # uses: houseabsolute/actions-rust-release@v0 | 等原仓库更新 https://github.com/houseabsolute/actions-rust-release/pull/8#issuecomment-2661004376
-        uses: Initsnow/actions-rust-release@v0
+        uses: houseabsolute/actions-rust-release@v0
         with:
           executable-name: mdict-rs
           target: ${{ matrix.platform.target }}

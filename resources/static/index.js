@@ -160,11 +160,13 @@ document.addEventListener('click', e => {
 });
 
 // lucky btn
-document.getElementById('lucky-btn')?.addEventListener('click', async () => {
-    try {
-        const response = await fetch('./lucky', { method: 'GET' });
-        render(await response.json());
-    } catch (error) {
-        console.error('获取lucky word失败:', error);
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('lucky-btn')?.addEventListener('click', async () => {
+        try {
+            const response = await fetch('./lucky', { method: 'GET' });
+            render(await response.json());
+        } catch (error) {
+            console.error('获取lucky word失败:', error);
+        }
+    });
 });
