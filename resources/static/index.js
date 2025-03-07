@@ -1,99 +1,172 @@
-// 光标默认可输入
-$(document).ready(function (e) {
-        $('#word').focus();
-    }
-);
+// 使用现代ES模块语法并移除jQuery依赖
+document.addEventListener('DOMContentLoaded', () => {
+    const $word = document.getElementById('word');
+    $word?.focus();
+});
 
-// 查询mdx
-function queryMdx(word) {
-    $('#mdx-resp').html('查询中...');
-    $.ajax({
-        url: './query',
-        type: 'POST',
-        data: {'word': word},
-        dataType: 'html',
-        success: function (data) {
-            if (data !== '') {
-                $('#mdx-resp').html(data).show();
-            } else {
-                $('#mdx-resp').hide();
-            }
-        }
-    });
+async function loadAndApplyCSS(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const sheet = new CSSStyleSheet();
+        await sheet.replace(await response.text());
+
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    } catch (error) {
+        console.error('CSS加载失败:', error);
+    }
 }
 
-function postQuery() {
-    let word = $('#word').val().trim();
-    if (!validInput(word)) {
+// 初始化样式加载
+loadAndApplyCSS('./index.css').catch(console.error);
+
+// 渲染性能优化
+const shadowStyleCache = new WeakMap();
+function createShadowDOM(content) {
+    const template = document.createElement('template');
+    template.innerHTML = `
+      <style>
+        :host { 
+
+        }
+      </style>
+      <div class="dict-content">${content.replace(/\u0000/g, '')}</div>
+    `;
+    return template.content.cloneNode(true);
+}
+
+function render(responseData) {
+    const container = document.getElementById('mdx-resp');
+    if (!responseData?.data?.length) {
+        container.style.display = 'none';
         return;
     }
-    queryMdx(word);
+
+    const fragment = document.createDocumentFragment();
+    responseData.data.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'dict-card';
+
+        const header = document.createElement('div');
+        header.className = 'dict-header';
+        header.textContent = item.dict;
+
+        const shadowHost = document.createElement('div');
+        const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+        shadowRoot.adoptedStyleSheets = document.adoptedStyleSheets;
+        shadowRoot.appendChild(createShadowDOM(item.content));
+
+        card.append(header, shadowHost);
+        fragment.appendChild(card);
+    });
+
+    // 兼容replaceChildren方法
+    if (typeof container.replaceChildren === 'function') {
+        container.replaceChildren(fragment);
+    } else {
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
+    container.style.display = 'block';
 }
 
-// 特殊字符不查询
-function validInput(word) {
-    return word
-        && word !== '.'
-        && word !== '#'
-        && word !== '?'
-        && word !== '/';
+// 异步请求封装
+async function queryMdx(word) {
+    const container = document.getElementById('mdx-resp');
+    try {
+        container.innerHTML = '查询中...';
+
+        const formData = new URLSearchParams();
+        formData.append('word', word);
+
+        const response = await fetch('./query', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+        render(await response.json());
+    } catch (error) {
+        console.error('查询错误:', error);
+        container.textContent = '查询失败';
+    }
 }
 
-// 监听回车键
-$(document).keydown(function (e) {
-    if (e.keyCode === 13) {
-        postQuery();
-    }
+// 输入验证
+const invalidChars = new Set(['.', '#', '?', '/']);
+const validInput = word => word && !invalidChars.has(word);
+
+// 事件处理优化
+const debounce = (fn, delay = 300) => {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+};
+
+const handleQuery = debounce(() => {
+    const word = document.getElementById('word').value.trim();
+    if (validInput(word)) queryMdx(word);
 });
 
-// 监听牛津8解释页面的外部单词链接
-$(document).on('click', 'a', function (e) {
-    console.log($(this).attr('href'));
-    let href = $(this).attr('href');// '/cool'
-    if (href.startsWith('/') && !href.startsWith('/#')) {
-        $('#word').val(href.slice(1)) // 'cool'
-        postQuery();
-        e.preventDefault()
-    }
-});
-
-// 捕获ctrl+L快捷键
-$(window).bind('keyup keydown', function (e) {
-    if ((e.ctrlKey || e.metaKey)
-        && String.fromCharCode(e.which).toLowerCase() === 'l') {
+// 事件监听
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleQuery();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
         e.preventDefault();
-        $('#word').val('').focus();
-        scrollTo(0, 0);
+        const $word = document.getElementById('word');
+        $word.value = '';
+        $word.focus();
+        window.scrollTo(0, 0);
     }
 });
 
-// 试试手气按钮
-$(document).on('click', '#lucky-btn', function (e) {
-    $.ajax({
-        url: './lucky',
-        type: 'GET',
-        dataType: 'html',
-        success: function (data) {
-            if (data !== '') {
-                $('#mdx-resp').html(data).show();
-            } else {
-                $('#mdx-resp').hide();
-            }
-            // $('#word').val(parserWordFromResp(data))
+// 统一URL处理函数
+function processCustomLink(href) {
+    try {
+        // 分步解码处理（应对多次编码的情况）
+        let decoded = href;
+        while (/%[0-9A-Fa-f]{2}/.test(decoded)) {
+            decoded = decodeURIComponent(decoded);
+        }
+        return decoded;
+    } catch (e) {
+        console.warn('URL解码失败，使用原始值:', href);
+        return href;
+    }
+}
+
+document.addEventListener('click', e => {
+    const link = e.composedPath().find(n => n.tagName === 'A');
+    if (!link || !link.href) return;
+
+    const rawHref = link.getAttribute('href'); // 获取未经浏览器处理的原始值
+    if (!rawHref) return;
+
+    const decodedHref = processCustomLink(rawHref);
+
+    // 处理entry://协议
+    if (decodedHref.startsWith('entry://')) {
+        e.preventDefault();
+        const word = decodedHref.replace(/^entry:\/\//, '');
+        document.getElementById('word').value = word;
+        handleQuery();
+        return;
+    }
+
+});
+
+// lucky btn
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('lucky-btn')?.addEventListener('click', async () => {
+        try {
+            const response = await fetch('./lucky', { method: 'GET' });
+            render(await response.json());
+        } catch (error) {
+            console.error('获取lucky word失败:', error);
         }
     });
 });
-
-// 不同词典返回html不一样，无法通用
-// function parserWordFromResp(data) {
-//     let el = document.createElement('html');
-//     el.innerHTML = data;
-//     let top_g = el.getElementsByClassName("top-g")[0]
-//     if (top_g == null) {
-//         console.log("top-g is null");
-//         return "";
-//     }
-//
-//     return top_g.firstElementChild.innerHTML.split('·').join('')
-//
-// }
