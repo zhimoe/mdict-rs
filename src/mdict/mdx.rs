@@ -1,11 +1,11 @@
 use crate::mdict::header::parse_header;
 use crate::mdict::keyblock::{
-    parse_key_block_header, parse_key_block_info, parse_key_blocks, Entry,
+    parse_key_block_header, parse_key_block_info, parse_key_blocks, RecordDeBufOffset,
 };
 use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
 use nom::Parser;
 
-/// 一个record的定位信息：在buf中的offset和在block解压后的offset
+/// 一个record的定位信息：在buf(buf表示所有record_block的bytes)中的offset和在block解压后的offset
 /// draw with: https://asciiflow.com/#/
 //                   ◄──block_csize───►
 //                   ┌────────────────┐
@@ -22,14 +22,14 @@ use nom::Parser;
 //           record_start_in_de_block
 //
 #[derive(Debug)]
-pub struct RecordOffset {
+pub struct RecordOffsetInfo {
     pub(crate) text: String,
     // record所在block在buf的offset 截取block使用
-    block_start_in_buf: usize,
+    block_offset_in_buf: usize,
     // 解析block使用
     block_csize: usize,
     block_dsize: usize,
-    // record在解压后的block的offset
+    // record在解压后的block的offset 和 end
     record_start_in_de_block: usize,
     record_end_in_de_block: usize,
 }
@@ -50,10 +50,9 @@ pub struct Record<'a> {
 /// record header: record block size, entry number, record block info size, record block size
 /// record block size info: every record block compressed and decompressed size, 用于解析下面的record block
 /// record block bytes: entry and definition bytes, parsed by RecordEntry and RecordBlockSize
-/// entry: 是一个索引
 /// record: 是一条释义
 pub struct Mdx {
-    pub records_offset: Vec<RecordOffset>,
+    pub records_offset: Vec<RecordOffsetInfo>,
     pub record_block_buf: Vec<u8>,
     pub encoding: String,
     pub encrypted: String,
@@ -73,7 +72,7 @@ impl Mdx {
         let (data, record_blocks_size) = parse_record_blocks(data, &header).unwrap();
 
         //计算position耗时，一次计算就保存下来
-        let offset: Vec<RecordOffset> = records_offset(&entries, &record_blocks_size);
+        let offset: Vec<RecordOffsetInfo> = records_offset(&entries, &record_blocks_size);
 
         Mdx {
             records_offset: offset,
@@ -84,7 +83,7 @@ impl Mdx {
     }
 
     #[allow(unused)]
-    pub fn entries(&self) -> impl Iterator<Item=&RecordOffset> {
+    pub fn entries(&self) -> impl Iterator<Item=&RecordOffsetInfo> {
         return self.records_offset.iter();
     }
 
@@ -98,9 +97,9 @@ impl Mdx {
         })
     }
 
-    fn find_definition(&self, rs: &RecordOffset) -> String {
+    fn find_definition(&self, rs: &RecordOffsetInfo) -> String {
         // block bytes with tail
-        let block_buf = &self.record_block_buf[rs.block_start_in_buf..];
+        let block_buf = &self.record_block_buf[rs.block_offset_in_buf..];
 
         let (_, block_decompressed) =
             record_block_parser(rs.block_csize, rs.block_dsize).parse(block_buf).unwrap();
@@ -116,39 +115,39 @@ impl Mdx {
 
 /// bytes structure: buf -> block -> record(entry)
 fn records_offset(
-    entries: &Vec<Entry>,
+    records_debuf_index: &Vec<RecordDeBufOffset>,
     record_blocks_size: &Vec<RecordBlockSize>,
-) -> Vec<RecordOffset> {
-    let mut positions: Vec<RecordOffset> = vec![];
+) -> Vec<RecordOffsetInfo> {
+    let mut positions: Vec<RecordOffsetInfo> = vec![];
     let mut i: usize = 0;
     let mut pre_blocks_dsize_sum = 0;
     let mut pre_blocks_csize_sum = 0;
-    // 同时开始遍历record_blocks_size和entries，每个block包含0或n个entry，当entry的buf_decompressed_offset > pre_blocks_dsize_sum时 说明当前block已经遍历
+    // 同时开始遍历record_blocks_size和entries，每个block包含0或n个entry，
+    // 当entry的buf_decompressed_offset > pre_blocks_dsize_sum时 说明当前block已经遍历结束
     for block in record_blocks_size {
-        while i < entries.len() {
-            let entry = &entries[i];
+        while i < records_debuf_index.len() {
+            let record = &records_debuf_index[i];
 
             // 当前entry已经属于下一个block，注意等于号
-            if entry.record_start_in_de_buf >= pre_blocks_dsize_sum + block.dsize {
+            if record.record_offset_in_debuf >= pre_blocks_dsize_sum + block.dsize {
                 break;
             }
 
-            let mut record_end_in_de_block = 0;
-            if i < entries.len() - 1 {
-                // 计算 record_end_in_decomp_block
-                let next_entry = &entries[i + 1];
-                record_end_in_de_block = next_entry.record_start_in_de_buf - pre_blocks_dsize_sum;
+            let record_end_in_de_block;
+            if i < records_debuf_index.len() - 1 {
+                let next_entry = &records_debuf_index[i + 1];
+                record_end_in_de_block = next_entry.record_offset_in_debuf - pre_blocks_dsize_sum;
             } else {
                 // last entry
                 record_end_in_de_block = block.dsize
             }
 
-            positions.push(RecordOffset {
-                text: entry.text.to_string(),
-                block_start_in_buf: pre_blocks_csize_sum,
+            positions.push(RecordOffsetInfo {
+                text: record.text.to_string(),
+                block_offset_in_buf: pre_blocks_csize_sum,
                 block_csize: block.csize,
                 block_dsize: block.dsize,
-                record_start_in_de_block: entry.record_start_in_de_buf - pre_blocks_dsize_sum,
+                record_start_in_de_block: record.record_offset_in_debuf - pre_blocks_dsize_sum,
                 record_end_in_de_block: record_end_in_de_block,
             });
             i += 1;

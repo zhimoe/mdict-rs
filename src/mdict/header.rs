@@ -17,6 +17,7 @@ pub enum Version {
 /// mdx头部信息
 #[derive(Debug)]
 pub struct Header {
+    //  牛津 V2 朗文 V2
     pub version: Version,
     /**
      * encryption flag

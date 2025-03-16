@@ -31,12 +31,12 @@ pub struct KeyBlockSize {
     pub dsize: usize,
 }
 
-/// 词典索引信息, 和实体词典的索引一样，一个text以及一个页码，不过这个页码是整个buf解压后的偏移量
+/// 词典索引信息, 和实体词典的索引一样，一个text以及一个页码，不过这个页码是整个RecordBlock解压后(叫debuf)的偏移量
 #[derive(Debug)]
-pub struct Entry {
+pub struct RecordDeBufOffset {
     pub text: String,
-    // 整个buf解压缩后entry的偏移量
-    pub record_start_in_de_buf: usize,
+    // record在所有RecordBlock解压后的起始位置
+    pub record_offset_in_debuf: usize,
 }
 
 pub fn parse_key_block_header<'a>(
@@ -196,11 +196,11 @@ pub fn parse_key_blocks<'a>(
     key_blocks_len: usize,
     header: &Header,
     key_blocks_size: &'a Vec<KeyBlockSize>,
-) -> IResult<&'a [u8], Vec<Entry>> {
+) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
     let (data, buf) = take(key_blocks_len)(data)?;
     let mut buf = buf;
 
-    let mut key_entries: Vec<Entry> = vec![];
+    let mut key_entries: Vec<RecordDeBufOffset> = vec![];
 
     for block_size in key_blocks_size.iter() {
         let (remain, decompressed) = key_block_parser(block_size.csize, block_size.dsize).parse(buf)?;
@@ -217,14 +217,14 @@ pub fn parse_key_blocks<'a>(
 }
 
 // TODO 可以合并
-fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<Entry>> {
+fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
     let (remain, entries) = many0(map(
         (be_u32, take_till(|x| x == 0), take(1_usize)),
         |(offset, buf, _)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            Entry {
-                record_start_in_de_buf: offset as usize,
+            RecordDeBufOffset {
+                record_offset_in_debuf: offset as usize,
                 text,
             }
         },
@@ -236,14 +236,14 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
     Ok((remain, entries))
 }
 
-fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<Entry>> {
+fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
     let (remain, sep) = many0(map(
         (be_u64, take_till(|x| x == 0), take(1_usize)),
         |(offset, buf, _end_zero)| {
             let decoder = encoding_from_whatwg_label(encoding).unwrap();
             let text = decoder.decode(buf, encoding::DecoderTrap::Ignore).unwrap();
-            Entry {
-                record_start_in_de_buf: offset as usize,
+            RecordDeBufOffset {
+                record_offset_in_debuf: offset as usize,
                 text,
             }
         },
