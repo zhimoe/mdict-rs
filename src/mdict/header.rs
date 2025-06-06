@@ -17,14 +17,11 @@ pub enum Version {
 /// mdx头部信息
 #[derive(Debug)]
 pub struct Header {
-    //  牛津 V2 朗文 V2
+    // 牛津8/汉语词典3/朗文4都是 V2
     pub version: Version,
     /**
-     * encryption flag
-     * "0" - no encryption
-     * "1" - encrypt record block
-     * "2" - encrypt key info block
-     * e.g. 牛津 "0" 朗文 "2"
+     * encryption flag "0"-no encryption, "1"-encrypt record block, "2"-encrypt key info block
+     * e.g. 牛津8/汉语词典3 "0" 朗文4 "2"
      */
     pub encrypted: String,
     // record bytes encoding, e.g. "UTF-8"
