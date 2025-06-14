@@ -21,7 +21,7 @@ pub struct Header {
     pub version: Version,
     /**
      * encryption flag "0"-no encryption, "1"-encrypt record block, "2"-encrypt key info block
-     * e.g. 牛津8/汉语词典3 "0" 朗文4 "2"
+     * e.g., 牛津8/汉语词典3 "0" 朗文4 "2"
      */
     pub encrypted: String,
     // record bytes encoding, e.g. "UTF-8"

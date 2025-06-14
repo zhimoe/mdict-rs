@@ -1,23 +1,30 @@
-use actix_web::{web, HttpResponse, Result};
-use serde_derive::Deserialize;
-
 use crate::lucky;
 use crate::query::query;
+use serde_derive::Deserialize;
+
+use axum::{
+    extract::Form,
+    response::Response,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct QueryForm {
     word: String,
 }
 
-pub(crate) async fn handle_query(params: web::Form<QueryForm>) -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok()
-        .content_type("text/plain")
-        .body(format!("{}", query(params.word.clone()))))
+pub(crate) async fn handle_query(Form(params): Form<QueryForm>) -> Response {
+    let result = query(params.word);
+    axum::http::Response::builder()
+        .header("Content-Type", "text/plain")
+        .body(result.into())
+        .unwrap()
 }
 
-pub(crate) async fn handle_lucky() -> Result<HttpResponse> {
+pub(crate) async fn handle_lucky() -> Response {
     let word = lucky::lucky_word();
-    Ok(HttpResponse::Ok()
-        .content_type("text/plain")
-        .body(format!("{}", query(word))))
+    let result = query(word);
+    axum::http::Response::builder()
+        .header("Content-Type", "text/plain")
+        .body(result.into())
+        .unwrap()
 }
