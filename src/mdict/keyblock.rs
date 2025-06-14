@@ -61,7 +61,7 @@ pub fn parse_key_block_header<'a>(
                 key_blocks_len: blocks_len as usize,
             },
         )
-            .parse(info_buf)?;
+        .parse(info_buf)?;
         Ok((data, kbh))
     }
 
@@ -75,12 +75,12 @@ pub fn parse_key_block_header<'a>(
         let (_, kbh) = map(
             (be_u64, be_u64, be_u64, be_u64, be_u64),
             |(
-                 block_num,
-                 entry_num,
-                 key_block_info_decompressed_len,
-                 key_block_info_len,
-                 key_blocks_len,
-             )| KeyBlockHeader {
+                block_num,
+                entry_num,
+                key_block_info_decompressed_len,
+                key_block_info_len,
+                key_blocks_len,
+            )| KeyBlockHeader {
                 block_num: block_num as usize,
                 entry_num: entry_num as usize,
                 key_block_info_decompressed_len: key_block_info_decompressed_len as usize,
@@ -88,7 +88,7 @@ pub fn parse_key_block_header<'a>(
                 key_blocks_len: key_blocks_len as usize,
             },
         )
-            .parse(info_buf)?;
+        .parse(info_buf)?;
         Ok((data, kbh))
     }
 }
@@ -203,7 +203,8 @@ pub fn parse_key_blocks<'a>(
     let mut key_entries: Vec<RecordDeBufOffset> = vec![];
 
     for block_size in key_blocks_size.iter() {
-        let (remain, decompressed) = key_block_parser(block_size.csize, block_size.dsize).parse(buf)?;
+        let (remain, decompressed) =
+            key_block_parser(block_size.csize, block_size.dsize).parse(buf)?;
         let (_, mut one_block_entries) = match &header.version {
             Version::V1 => parse_block_items_v1(&decompressed[..], &header.encoding).unwrap(),
             Version::V2 => parse_block_items_v2(&decompressed[..], &header.encoding).unwrap(),
@@ -217,7 +218,10 @@ pub fn parse_key_blocks<'a>(
 }
 
 // TODO 可以合并
-fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
+fn parse_block_items_v1<'a>(
+    data: &'a [u8],
+    encoding: &'a str,
+) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
     let (remain, entries) = many0(map(
         (be_u32, take_till(|x| x == 0), take(1_usize)),
         |(offset, buf, _)| {
@@ -229,14 +233,17 @@ fn parse_block_items_v1<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
             }
         },
     ))
-        .parse(data)?;
+    .parse(data)?;
 
     assert_eq!(remain.len(), 0);
 
     Ok((remain, entries))
 }
 
-fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
+fn parse_block_items_v2<'a>(
+    data: &'a [u8],
+    encoding: &'a str,
+) -> IResult<&'a [u8], Vec<RecordDeBufOffset>> {
     let (remain, sep) = many0(map(
         (be_u64, take_till(|x| x == 0), take(1_usize)),
         |(offset, buf, _end_zero)| {
@@ -248,7 +255,7 @@ fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
             }
         },
     ))
-        .parse(data)?;
+    .parse(data)?;
 
     assert_eq!(remain.len(), 0);
 
@@ -259,7 +266,7 @@ fn parse_block_items_v2<'a>(data: &'a [u8], encoding: &'a str) -> IResult<&'a [u
 fn key_block_parser<'a>(
     csize: usize,
     dsize: usize,
-) -> impl Parser<&'a [u8], Output=Vec<u8>, Error=nom::error::Error<&'a [u8]>> {
+) -> impl Parser<&'a [u8], Output = Vec<u8>, Error = nom::error::Error<&'a [u8]>> {
     map(
         (le_u32, take(4_usize), take(csize - 8)),
         move |(enc, checksum, encrypted_buf)| {

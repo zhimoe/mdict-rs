@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use adler32::adler32;
 use encoding::{all::UTF_16LE, Encoding};
-use log::info;
 use nom::multi::length_data;
 use nom::number::complete::{be_u32, le_u32};
 use nom::{IResult, Parser};
 use regex::Regex;
+use tracing::info;
 
 #[derive(Debug)]
 pub enum Version {

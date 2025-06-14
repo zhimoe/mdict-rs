@@ -83,11 +83,11 @@ impl Mdx {
     }
 
     #[allow(unused)]
-    pub fn entries(&self) -> impl Iterator<Item=&RecordOffsetInfo> {
+    pub fn entries(&self) -> impl Iterator<Item = &RecordOffsetInfo> {
         return self.records_offset.iter();
     }
 
-    pub fn items(&self) -> impl Iterator<Item=Record> {
+    pub fn items(&self) -> impl Iterator<Item = Record> {
         self.records_offset.iter().map(|rs| {
             let def = self.find_definition(&rs);
             Record {
@@ -101,8 +101,9 @@ impl Mdx {
         // block bytes with tail
         let block_buf = &self.record_block_buf[rs.block_offset_in_buf..];
 
-        let (_, block_decompressed) =
-            record_block_parser(rs.block_csize, rs.block_dsize).parse(block_buf).unwrap();
+        let (_, block_decompressed) = record_block_parser(rs.block_csize, rs.block_dsize)
+            .parse(block_buf)
+            .unwrap();
 
         let record_decompressed =
             &block_decompressed[rs.record_start_in_de_block..rs.record_end_in_de_block];

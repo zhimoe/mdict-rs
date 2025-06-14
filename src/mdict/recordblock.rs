@@ -41,7 +41,7 @@ fn parse_record_blocks_v1(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
         }),
         records_num as usize,
     )
-        .parse(data)
+    .parse(data)
 }
 
 fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
@@ -57,13 +57,13 @@ fn parse_record_blocks_v2(data: &[u8]) -> IResult<&[u8], Vec<RecordBlockSize>> {
         }),
         records_num as usize,
     )
-        .parse(data)
+    .parse(data)
 }
 
 pub(crate) fn record_block_parser<'a>(
     size: usize,
     dsize: usize,
-) -> impl Parser<&'a [u8], Output=Vec<u8>, Error=nom::error::Error<&'a [u8]>> {
+) -> impl Parser<&'a [u8], Output = Vec<u8>, Error = nom::error::Error<&'a [u8]>> {
     map(
         (le_u32, take(4_usize), take(size - 8)),
         move |(enc, checksum, encrypted)| {

@@ -2,10 +2,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use log::info;
 use rusqlite::{params, Connection};
 
 use crate::mdict::mdx::Mdx;
+use tracing::info;
 
 /// indexing all mdx files into db
 pub(crate) fn indexing(files: &[&str], reindex: bool) {
@@ -37,7 +37,7 @@ pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
         params![],
     )
     .with_context(|| "create table failed")?;
-    println!("table crated for {:?}", &db_file);
+    info!("table crated for {:?}", &db_file);
 
     let tx = conn
         .transaction()

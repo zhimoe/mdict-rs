@@ -8,6 +8,7 @@ use axum::{
 };
 use std::error::Error;
 use tower_http::{services::ServeDir, trace::TraceLayer};
+use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod config;
@@ -17,7 +18,6 @@ mod lucky;
 mod mdict;
 mod query;
 mod util;
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let port = 8181;
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8181").await.unwrap();
 
-    println!("app serve on http://localhost:{}", port);
+    info!("app serve on http://localhost:{}", port);
 
     axum::serve(listener, app).await?;
 

@@ -2,10 +2,7 @@ use crate::lucky;
 use crate::query::query;
 use serde_derive::Deserialize;
 
-use axum::{
-    extract::Form,
-    response::Response,
-};
+use axum::{extract::Form, response::Response};
 
 #[derive(Deserialize, Debug)]
 pub struct QueryForm {
