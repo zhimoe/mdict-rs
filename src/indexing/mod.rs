@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
 use crate::mdict::mdx::Mdx;
 use tracing::info;
@@ -15,17 +15,17 @@ pub(crate) fn indexing(files: &[&str], reindex: bool) {
             if reindex {
                 fs::remove_file(&db_file).expect("remove old db file error");
                 info!("old db file:{} removed", &db_file);
-                mdx_to_sqlite(&file).unwrap();
+                mdx_to_sqlite(file).unwrap();
             }
         } else {
-            mdx_to_sqlite(&file).unwrap();
+            mdx_to_sqlite(file).unwrap();
         }
     }
 }
 
 /// mdx entries and definition to sqlite table
 pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
-    let db_file = format!("{}{}", file.to_string(), ".db");
+    let db_file = format!("{}{}", file, ".db");
     let mut conn = Connection::open(&db_file)?;
     let mdx = Mdx::new(&fs::read(file)?);
 

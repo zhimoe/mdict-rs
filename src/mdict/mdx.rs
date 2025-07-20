@@ -1,8 +1,8 @@
 use crate::mdict::header::parse_header;
 use crate::mdict::keyblock::{
-    parse_key_block_header, parse_key_block_info, parse_key_blocks, RecordDeBufOffset,
+    RecordDeBufOffset, parse_key_block_header, parse_key_block_info, parse_key_blocks,
 };
-use crate::mdict::recordblock::{parse_record_blocks, record_block_parser, RecordBlockSize};
+use crate::mdict::recordblock::{RecordBlockSize, parse_record_blocks, record_block_parser};
 use nom::Parser;
 
 /// 一个record的定位信息：在buf(buf表示所有record_block的bytes)中的offset和在block解压后的offset
@@ -54,7 +54,9 @@ pub struct Record<'a> {
 pub struct Mdx {
     pub records_offset: Vec<RecordOffsetInfo>,
     pub record_block_buf: Vec<u8>,
+    #[allow(unused)]
     pub encoding: String,
+    #[allow(unused)]
     pub encrypted: String,
 }
 
@@ -84,7 +86,7 @@ impl Mdx {
 
     #[allow(unused)]
     pub fn entries(&self) -> impl Iterator<Item = &RecordOffsetInfo> {
-        return self.records_offset.iter();
+        self.records_offset.iter()
     }
 
     pub fn items(&self) -> impl Iterator<Item = Record> {

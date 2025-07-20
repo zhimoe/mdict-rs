@@ -2,25 +2,25 @@
 name = "mdict-rs"
 version = "0.1.0"
 authors = ["zhimoe"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
 anyhow = "1"
-serde_derive = "1.0"
+serde_derive = "1"
 serde = "1"
 nom = "8"
 encoding = "0.2"
 adler32 = "1"
-rusqlite = { version = "0.36", features = ["bundled"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
 flate2 = { version = "1.0", features = ["zlib"], default-features = false }
 rand = "0.9"
-minilzo-rs = "0.6.0"
+minilzo-rs = "0.6"
 ripemd = "0.1.3"
 once_cell = "1.19.0"
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.6.6", features = ["full"] }
-regex = "1.9"
+regex = "1.11"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

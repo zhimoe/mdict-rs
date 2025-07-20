@@ -1,15 +1,15 @@
-use crate::config::{static_path, MDX_FILES};
+use crate::config::{MDX_FILES, static_path};
 use crate::handlers::{handle_lucky, handle_query};
 use crate::indexing::indexing;
 
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 use std::error::Error;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod handlers;

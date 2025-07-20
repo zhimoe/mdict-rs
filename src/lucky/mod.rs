@@ -1,9 +1,9 @@
 use std::iter::Iterator;
 
 use once_cell::sync::Lazy;
-use rand::{thread_rng, Rng};
+use rand::{Rng, rng};
 pub fn lucky_word() -> String {
-    let random_index = thread_rng().gen_range(0..WORD_LIST.len());
+    let random_index = rng().random_range(0..WORD_LIST.len());
     WORD_LIST[random_index].to_string()
 }
 static WORD_LIST: Lazy<Vec<&str>> = Lazy::new(|| STRING_LINES.lines().collect());

@@ -5,7 +5,7 @@ main {
 footer {
     height: 50px;
     text-align: center;
-    font-family: consolas, "fira code", monospace;
+    font-family: 'SF Mono', monospace;
     font-size: 10px;
 }
 
@@ -15,7 +15,7 @@ footer {
 }
 
 h1, h2, h3 {
-    font-family: "Fira Code", monospace, "PingFang SC", "Microsoft YaHei";
+    font-family: "SF Mono", monospace, "PingFang SC", "Microsoft YaHei";
 }
 
 input, #lucky-btn {
@@ -27,7 +27,7 @@ input, #lucky-btn {
     padding: 8px;
     vertical-align: middle; /* 解决input和button上下错位问题 */
     font-size: 16px;
-    font-family: "Fira Code", monospace, "PingFang SC", "Microsoft YaHei";
+    font-family: "SF Mono", monospace, "PingFang SC", "Microsoft YaHei";
 }
 
 #lucky-btn {

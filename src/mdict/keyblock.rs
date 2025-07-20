@@ -6,19 +6,22 @@ use adler32::adler32;
 use encoding::label::encoding_from_whatwg_label;
 use flate2::read::ZlibDecoder;
 use nom::{
+    IResult, Parser,
     bytes::complete::{take, take_till},
     combinator::map,
     multi::{length_data, many0},
     number::complete::{be_u32, be_u64, le_u32},
-    IResult, Parser,
 };
 use ripemd::{Digest, Ripemd128};
 use std::{io::Read, str};
 
 pub struct KeyBlockHeader {
+    #[allow(unused)]
     pub block_num: usize,
+    #[allow(unused)]
     pub entry_num: usize,
     // only version >= 2
+    #[allow(unused)]
     pub key_block_info_decompressed_len: usize,
     pub key_block_info_len: usize,
     pub key_blocks_len: usize,

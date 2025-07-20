@@ -82,10 +82,10 @@ pub(crate) fn record_block_parser<'a>(
                     let decrypt = vec![];
                     decrypt
                 }
-                _ => panic!("unknown enc method: {}", enc_method),
+                _ => panic!("unknown enc method: {enc_method}"),
             };
 
-            let decompressed = match comp_method {
+            match comp_method {
                 0 => data,
                 1 => {
                     let lzo = minilzo_rs::LZO::init().unwrap();
@@ -96,10 +96,8 @@ pub(crate) fn record_block_parser<'a>(
                     ZlibDecoder::new(&data[..]).read_to_end(&mut v).unwrap();
                     v
                 }
-                _ => panic!("unknown compression method: {}", comp_method),
-            };
-
-            decompressed
+                _ => panic!("unknown compression method: {comp_method}"),
+            }
         },
     )
 }

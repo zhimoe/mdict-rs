@@ -1,13 +1,14 @@
 # mdict-rs
 
-a simple web dictionary write in rust, base on mdx format dictionary file.
-it's at an early stage of development, now only support mdx version 2.0 with encrypted=2 or 0
+A simple web dictionary, built in rust, based on mdx format dictionary file.
+
+It's at an early stage of development, now only supports mdx version 2.0 with encrypted=2 or 0
 
 ## usage
 
-1. put your mdx file in `resources/mdx/en` folder ando config `src/config/mod.rs`
-2. if your mdx file has separate css file, put it in `resources/static/` folder
-3. run
+1. put your mdx file in `resources/mdx/en` folder and add files in config `src/config/mod.rs`
+2. if your mdx file has a separate CSS file, put it in `resources/static/` folder
+3. run with:
 
 ```bash
 cargo run --bin mdict-rs
@@ -17,7 +18,7 @@ cargo run --bin mdict-rs
 
 ## screenshot
 
-![screenshot](screenshot.jpg)
+![screenshot](screenshot.png)
 
 ## 参考
 
