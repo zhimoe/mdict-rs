@@ -11,7 +11,7 @@ pub fn query(word: String) -> String {
         let mut stmt = conn
             .prepare("select * from MDX_INDEX WHERE text= :word limit 1;")
             .unwrap();
-        info!("query params={}", &w);
+        info!("query params={}, dict={}", &w, file);
 
         let mut rows = stmt.query(named_params! { ":word": w }).unwrap();
         let row = rows.next().unwrap();
