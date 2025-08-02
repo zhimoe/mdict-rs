@@ -1,12 +1,12 @@
 use std::iter::Iterator;
 
-use once_cell::sync::Lazy;
-use rand::{Rng, rng};
+use rand::{rng, Rng};
+use std::sync::LazyLock;
 pub fn lucky_word() -> String {
     let random_index = rng().random_range(0..WORD_LIST.len());
     WORD_LIST[random_index].to_string()
 }
-static WORD_LIST: Lazy<Vec<&str>> = Lazy::new(|| STRING_LINES.lines().collect());
+static WORD_LIST: LazyLock<Vec<&str>> = LazyLock::new(|| STRING_LINES.lines().collect());
 static STRING_LINES: &str = r#"abjure
 abrogate
 abstemious
