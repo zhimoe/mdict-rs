@@ -1,4 +1,4 @@
-use rusqlite::{Connection, named_params};
+use rusqlite::{named_params, Connection};
 use tracing::info;
 
 use crate::config::MDX_FILES;
@@ -16,8 +16,7 @@ pub fn query(word: String) -> String {
         let mut rows = stmt.query(named_params! { ":word": w }).unwrap();
         let row = rows.next().unwrap();
         if let Some(row) = row {
-            let def = row.get::<usize, String>(1).unwrap();
-            return def;
+            return row.get::<usize, String>(1).unwrap();
         }
     }
     "not found".to_string()

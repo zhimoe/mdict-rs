@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-pub const MDX_FILES: &[&str] = &[
+pub const MDX_FILES: [&str; 3] = [
     "./resources/mdx/en/牛津高阶8.mdx",
     "./resources/mdx/en/朗文当代4.mdx",
     "./resources/mdx/zh/汉语词典3.mdx",
