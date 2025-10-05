@@ -13,6 +13,8 @@ nom = "8"
 encoding = "0.2"
 adler32 = "1"
 rusqlite = { version = "0.37", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.31"
 flate2 = { version = "1", features = ["zlib"], default-features = false }
 rand = "0.9"
 minilzo-rs = "0.6"

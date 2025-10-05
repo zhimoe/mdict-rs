@@ -26,8 +26,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with(EnvFilter::new("info"))
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    indexing(MDX_FILES, false);
+    // 解析mdx到sqlite数据库
+    indexing(MDX_FILES, false).expect("indexing failed");
 
     let static_dir = ServeDir::new(static_path()?);
 

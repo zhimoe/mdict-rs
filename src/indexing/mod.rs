@@ -2,25 +2,28 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
 use crate::mdict::mdx::Mdx;
 use tracing::info;
 
 /// indexing all mdx files into db
-pub(crate) fn indexing(files: &[&str], reindex: bool) {
+pub(crate) fn indexing(files: &[&str], reindex: bool) -> anyhow::Result<()> {
     for file in files {
-        let db_file = format!("{}{}", file.to_string(), ".db");
-        if PathBuf::from(&db_file).exists() {
+        let db_file_name = format!("{}{}", file, ".db");
+        let db_path = PathBuf::from(&db_file_name);
+        if db_path.exists() {
             if reindex {
-                fs::remove_file(&db_file).expect("remove old db file error");
-                info!("old db file:{} removed", &db_file);
-                mdx_to_sqlite(file).unwrap();
+                fs::remove_file(&db_file_name).expect("remove old db file error");
+                info!("old db file:{} removed", &db_file_name);
+                mdx_to_sqlite(file).expect("indexing failed");
             }
         } else {
-            mdx_to_sqlite(file).unwrap();
+            mdx_to_sqlite(file).expect("indexing failed");
         }
     }
+
+    Ok(())
 }
 
 /// mdx entries and definition to sqlite table
@@ -36,8 +39,7 @@ pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
          )",
         params![],
     )
-    .with_context(|| "create table failed")?;
-    info!("table crated for {:?}", &db_file);
+        .with_context(|| "create table failed")?;
 
     let tx = conn
         .transaction()
@@ -48,9 +50,10 @@ pub(crate) fn mdx_to_sqlite(file: &str) -> anyhow::Result<()> {
             "insert or replace into MDX_INDEX values (?,?)",
             params![r.text, r.definition],
         )
-        .with_context(|| "insert MDX_INDEX table error")?;
+            .with_context(|| "insert MDX_INDEX table error")?;
     }
     tx.commit().with_context(|| "transaction commit error")?;
     conn.close().expect("close db connection failed");
     Ok(())
 }
+
